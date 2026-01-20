@@ -36,6 +36,14 @@ class PrimaryTextField extends StatefulWidget {
   /// Jumlah baris maksimal (1 = single line)
   /// Default: 1
   final int? maxLines;
+  
+  /// Jika true, field diset menjadi read-only (tidak bisa diketik)
+  /// Default: false
+  final bool readOnly;
+
+  /// Jika false, field dinonaktifkan (tidak menerima input)
+  /// Default: true
+  final bool enabled;
 
   const PrimaryTextField({
     super.key,
@@ -47,6 +55,8 @@ class PrimaryTextField extends StatefulWidget {
     this.validator,
     this.keyboardType,
     this.maxLines = 1,
+    this.readOnly = false,
+    this.enabled = true,
   });
 
   @override
@@ -87,6 +97,8 @@ class _PrimaryTextFieldState extends State<PrimaryTextField> {
           child: TextFormField(
             controller: widget.controller,
             obscureText: _isObscured,
+            readOnly: widget.readOnly,
+            enabled: widget.enabled,
             validator: widget.validator,
             keyboardType: widget.keyboardType,
             maxLines: widget.maxLines,

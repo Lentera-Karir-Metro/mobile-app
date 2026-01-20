@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../styles/styles.dart';
 import '../../widgets/universal/inputs/primary_text_field.dart';
 import '../../widgets/universal/buttons/primary_button.dart';
+import '../../providers/auth_provider.dart';
 
 /// Screen login - Sign In
 /// Design reference: Sign in.svg
@@ -11,7 +13,7 @@ import '../../widgets/universal/buttons/primary_button.dart';
 /// - Input email dan password menggunakan PrimaryTextField
 /// - Link ke register screen
 /// - Link ke reset password
-/// - Saat ini: hardcode login berhasil, langsung ke /home
+/// - Terintegrasi dengan AuthProvider untuk backend auth
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -23,7 +25,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -32,29 +33,35 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  /// Handle login - untuk saat ini langsung ke home tanpa validasi backend
+  /// Handle login dengan AuthProvider
   void _handleLogin() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // Simulate API call
-      await Future.delayed(const Duration(milliseconds: 800));
-
+      final authProvider = context.read<AuthProvider>();
+      
+      final success = await authProvider.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+      
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        
-        // Navigate to home - hardcode untuk saat ini
-        context.go('/home');
+        if (success) {
+          context.go('/home');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authProvider.errorMessage ?? 'Login gagal'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = context.watch<AuthProvider>().isLoading;
+    
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
@@ -159,9 +166,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   Center(
                     child: PrimaryButton(
                       text: 'Sign In',
-                      onPressed: _isLoading ? null : _handleLogin,
+                      onPressed: isLoading ? null : _handleLogin,
                       width: 245,
-                      isLoading: _isLoading,
+                      isLoading: isLoading,
                     ),
                   ),
 

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:lentera_karir/styles/styles.dart';
+import 'package:lentera_karir/widgets/universal/adaptive_image.dart';
 
 class CardDetailKelas extends StatelessWidget {
-  final String thumbnailPath;
+  final String? thumbnailPath;
   final String price;
+  final String? originalPrice; // Original price before discount (optional)
+  final bool hasDiscount; // Whether there's a discount
   final String lifetimeText;
   final String videoText;
   final String ebookText;
@@ -11,8 +14,10 @@ class CardDetailKelas extends StatelessWidget {
 
   const CardDetailKelas({
     super.key,
-    required this.thumbnailPath,
+    this.thumbnailPath,
     required this.price,
+    this.originalPrice,
+    this.hasDiscount = false,
     required this.lifetimeText,
     required this.videoText,
     required this.ebookText,
@@ -44,22 +49,13 @@ class CardDetailKelas extends StatelessWidget {
               color: AppColors.textSecondary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: ClipRRect(
+            child: AdaptiveImage(
+              imagePath: thumbnailPath,
+              fallbackAsset: FallbackAssets.sampleImage,
+              width: double.infinity,
+              height: 150,
+              fit: BoxFit.cover,
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                thumbnailPath,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Center(
-                    child: Icon(
-                      Icons.image,
-                      size: 40,
-                      color: AppColors.textSecondary,
-                    ),
-                  );
-                },
-              ),
             ),
           ),
           
@@ -69,11 +65,24 @@ class CardDetailKelas extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Price - ukuran lebih kecil
+                // Price section with discount
+                if (hasDiscount && originalPrice != null) ...[
+                  // Original price with strikethrough
+                  Text(
+                    originalPrice!,
+                    style: AppTextStyles.body2.copyWith(
+                      color: AppColors.textSecondary,
+                      decoration: TextDecoration.lineThrough,
+                      decorationColor: AppColors.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                ],
+                // Final price
                 Text(
                   price,
                   style: AppTextStyles.subtitle1.copyWith(
-                    color: AppColors.textPrimary,
+                    color: hasDiscount ? const Color(0xFF34C759) : AppColors.textPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

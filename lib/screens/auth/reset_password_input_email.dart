@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../styles/styles.dart';
 import '../../widgets/universal/inputs/primary_text_field.dart';
 import '../../widgets/universal/buttons/primary_button.dart';
+import '../../providers/auth_provider.dart';
 
 /// Screen input email untuk reset password
 /// Design reference: Reset password (input email).svg
 /// 
 /// Fitur:
 /// - Input email menggunakan PrimaryTextField
-/// - Popup konfirmasi setelah submit (untuk saat ini tanpa backend)
+/// - Popup konfirmasi setelah submit
 /// - Back button ke login
+/// - Terintegrasi dengan AuthProvider untuk backend auth
 class ResetPasswordInputEmailScreen extends StatefulWidget {
   const ResetPasswordInputEmailScreen({super.key});
 
@@ -23,7 +26,6 @@ class _ResetPasswordInputEmailScreenState
     extends State<ResetPasswordInputEmailScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -31,23 +33,26 @@ class _ResetPasswordInputEmailScreenState
     super.dispose();
   }
 
-  /// Handle send reset link - untuk saat ini tampilkan popup sukses
+  /// Handle send reset link dengan AuthProvider
   void _handleSendResetLink() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // Simulate API call
-      await Future.delayed(const Duration(milliseconds: 800));
-
+      final authProvider = context.read<AuthProvider>();
+      
+      final response = await authProvider.forgotPassword(
+        _emailController.text.trim(),
+      );
+      
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-
-        // Show success dialog
-        _showSuccessDialog();
+        if (response.success) {
+          _showSuccessDialog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? 'Gagal mengirim email'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -124,6 +129,8 @@ class _ResetPasswordInputEmailScreenState
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = context.watch<AuthProvider>().isLoading;
+    
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
@@ -183,9 +190,9 @@ class _ResetPasswordInputEmailScreenState
                   Center(
                     child: PrimaryButton(
                       text: 'Kirim',
-                      onPressed: _isLoading ? null : _handleSendResetLink,
+                      onPressed: isLoading ? null : _handleSendResetLink,
                       width: 245,
-                      isLoading: _isLoading,
+                      isLoading: isLoading,
                     ),
                   ),
 

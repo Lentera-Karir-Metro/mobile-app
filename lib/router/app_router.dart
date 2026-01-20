@@ -1,6 +1,8 @@
 // lib/router/app_router.dart
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:lentera_karir/service_locator.dart';
 
 import 'package:lentera_karir/screens/splash/splash_screen.dart';
 import 'package:lentera_karir/screens/splash/onboarding.dart';
@@ -20,9 +22,22 @@ import 'package:lentera_karir/screens/home/quick_sertif.dart';
 import 'package:lentera_karir/screens/kelas/detail_kelas.dart';
 import 'package:lentera_karir/screens/kelas/belum_beli/beli_kelas.dart';
 import 'package:lentera_karir/screens/kelas/belum_beli/payment.dart';
+import 'package:lentera_karir/screens/kelas/belum_beli/midtrans_webview.dart';
+import 'package:lentera_karir/screens/payment/payment_success_screen.dart';
+import 'package:lentera_karir/screens/payment/payment_pending_screen.dart';
 import 'package:lentera_karir/screens/kelas/sudah_beli/mulai_kelas.dart';
 import 'package:lentera_karir/screens/quiz/quiz.dart';
 import 'package:lentera_karir/screens/quiz/quiz_result.dart';
+import 'package:lentera_karir/screens/ebook/ebook_viewer.dart';
+
+// Providers
+import 'package:lentera_karir/providers/catalog_provider.dart';
+import 'package:lentera_karir/providers/course_provider.dart';
+import 'package:lentera_karir/providers/learning_path_provider.dart';
+import 'package:lentera_karir/providers/quiz_provider.dart';
+import 'package:lentera_karir/providers/payment_provider.dart';
+import 'package:lentera_karir/providers/certificate_provider.dart';
+import 'package:lentera_karir/providers/ebook_provider.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -64,10 +79,13 @@ class AppRouter {
         builder: (context, state) => const ResetPasswordInputEmailScreen(),
       ),
 
-      // Reset Password (Ganti Password) route
+      // Reset Password (Ganti Password) route - dengan token dari email
       GoRoute(
         path: '/reset-password',
-        builder: (context, state) => const ResetPasswordScreen(),
+        builder: (context, state) {
+          final token = state.uri.queryParameters['token'];
+          return ResetPasswordScreen(token: token);
+        },
       ),
 
       // Home route
@@ -78,45 +96,53 @@ class AppRouter {
           child: const HomeScreen(),
         ),
         routes: [
-          // Home Search route
+          // Home Search route with CatalogProvider (singleton)
           GoRoute(
             path: 'search',
             pageBuilder: (context, state) => MaterialPage(
               key: state.pageKey,
-              child: const HomeSearchScreen(),
+              child: ChangeNotifierProvider<CatalogProvider>.value(
+                value: getIt<CatalogProvider>(),
+                child: const HomeSearchScreen(),
+              ),
             ),
           ),
         ],
       ),
 
-      // Explore route
+      // Explore route with CatalogProvider (singleton)
       GoRoute(
         path: '/explore',
         pageBuilder: (context, state) => NoTransitionPage(
           key: state.pageKey,
-          child: const ExploreScreen(),
+          child: ChangeNotifierProvider<CatalogProvider>.value(
+            value: getIt<CatalogProvider>(),
+            child: const ExploreScreen(),
+          ),
         ),
       ),
 
-      // Learn Path route
+      // Learn Path route with LearningPathProvider
       GoRoute(
         path: '/learn-path',
         pageBuilder: (context, state) => NoTransitionPage(
           key: state.pageKey,
-          child: const LearnPathListScreen(),
+          child: ChangeNotifierProvider(
+            create: (_) => getIt<LearningPathProvider>(),
+            child: const LearnPathListScreen(),
+          ),
         ),
         routes: [
-          // Learn Path Detail route
+          // Learn Path Detail route with dynamic pathId
           GoRoute(
-            path: 'detail',
+            path: ':pathId',
             builder: (context, state) {
-              final extra = state.extra as Map<String, String>;
-              return LearnPathDetailScreen(
-                pathId: extra['pathId']!,
-                title: extra['title']!,
-                description: extra['description']!,
-                profileSection: extra['profileSection']!,
-                profileDescription: extra['profileDescription']!,
+              final pathId = state.pathParameters['pathId']!;
+              return ChangeNotifierProvider(
+                create: (_) => getIt<LearningPathProvider>(),
+                child: LearnPathDetailScreen(
+                  pathId: pathId,
+                ),
               );
             },
           ),
@@ -132,108 +158,201 @@ class AppRouter {
         ),
       ),
 
-      // Quick Ebook route
+      // Quick Ebook route with EbookProvider
       GoRoute(
         path: '/quick-ebook',
         pageBuilder: (context, state) => NoTransitionPage(
           key: state.pageKey,
-          child: const QuickEbookScreen(),
+          child: ChangeNotifierProvider(
+            create: (_) => getIt<EbookProvider>(),
+            child: const QuickEbookScreen(),
+          ),
         ),
       ),
 
-      // Quick Kelas route
+      // Quick Kelas route with CourseProvider (singleton)
       GoRoute(
         path: '/quick-kelas',
         pageBuilder: (context, state) => NoTransitionPage(
           key: state.pageKey,
-          child: const QuickKelasScreen(),
+          child: ChangeNotifierProvider<CourseProvider>.value(
+            value: getIt<CourseProvider>(),
+            child: const QuickKelasScreen(),
+          ),
         ),
       ),
 
-      // Quick Sertifikat route
+      // Quick Sertifikat route with CertificateProvider
       GoRoute(
         path: '/quick-sertif',
         pageBuilder: (context, state) => NoTransitionPage(
           key: state.pageKey,
-          child: const QuickSertifScreen(),
+          child: ChangeNotifierProvider(
+            create: (_) => getIt<CertificateProvider>(),
+            child: const QuickSertifScreen(),
+          ),
         ),
       ),
 
-      // Kelas Detail route
+      // Kelas Detail route with CourseProvider & CatalogProvider (singletons)
       GoRoute(
         path: '/kelas/detail/:courseId',
         builder: (context, state) {
           final courseId = state.pathParameters['courseId'] ?? '';
           final isPurchased = state.extra as bool? ?? false;
-          return DetailKelasScreen(
-            courseId: courseId,
-            isPurchased: isPurchased,
+          return MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: getIt<CourseProvider>()),
+              ChangeNotifierProvider.value(value: getIt<CatalogProvider>()),
+            ],
+            child: DetailKelasScreen(
+              courseId: courseId,
+              isPurchased: isPurchased,
+            ),
           );
         },
       ),
 
-      // Beli Kelas route
+      // Beli Kelas route with CatalogProvider and PaymentProvider (singletons)
       GoRoute(
         path: '/kelas/beli/:courseId',
         builder: (context, state) {
           final courseId = state.pathParameters['courseId'] ?? '';
-          return BeliKelasScreen(courseId: courseId);
+          return MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: getIt<CatalogProvider>()),
+              ChangeNotifierProvider.value(value: getIt<PaymentProvider>()),
+            ],
+            child: BeliKelasScreen(courseId: courseId),
+          );
         },
       ),
 
-      // Payment route
+      // Payment route with PaymentProvider (singleton)
       GoRoute(
         path: '/kelas/payment/:courseId',
         builder: (context, state) {
           final courseId = state.pathParameters['courseId'] ?? '';
           final extra = state.extra as Map<String, dynamic>? ?? {};
           
-          return PaymentScreen(
-            courseId: courseId,
-            orderId: extra['orderId'] ?? '#LTR-000000',
-            totalAmount: extra['totalAmount'] ?? 'Rp0',
-            expiredAt: extra['expiredAt'] ?? DateTime.now().add(const Duration(hours: 24)),
-            transactionToken: extra['transactionToken'],
-            redirectUrl: extra['redirectUrl'],
+          return ChangeNotifierProvider.value(
+            value: getIt<PaymentProvider>(),
+            child: PaymentScreen(
+              courseId: courseId,
+              orderId: extra['orderId'] ?? '#LTR-000000',
+              totalAmount: extra['totalAmount'] ?? 'Rp0',
+              expiredAt: extra['expiredAt'] ?? DateTime.now().add(const Duration(hours: 24)),
+              transactionToken: extra['transactionToken'],
+              redirectUrl: extra['redirectUrl'],
+            ),
           );
         },
       ),
 
-      // Mulai Kelas route (kelas yang sudah dibeli)
+      // Midtrans WebView payment route (singleton)
+      GoRoute(
+        path: '/payment/webview/:courseId',
+        builder: (context, state) {
+          final courseId = state.pathParameters['courseId'] ?? '';
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          
+          return ChangeNotifierProvider<PaymentProvider>.value(
+            value: getIt<PaymentProvider>(),
+            child: MidtransWebViewScreen(
+              courseId: courseId,
+              orderId: extra['orderId'] ?? '',
+              redirectUrl: extra['redirectUrl'] ?? '',
+              totalAmount: (extra['totalAmount'] as num?)?.toDouble() ?? 0.0,
+            ),
+          );
+        },
+      ),
+
+      // Payment success route
+      GoRoute(
+        path: '/payment/success',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return PaymentSuccessScreen(
+            orderId: extra['orderId'] ?? '',
+            courseId: extra['courseId'],
+          );
+        },
+      ),
+
+      // Payment pending route (singleton)
+      GoRoute(
+        path: '/payment/pending',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return ChangeNotifierProvider<PaymentProvider>.value(
+            value: getIt<PaymentProvider>(),
+            child: PaymentPendingScreen(
+              orderId: extra['orderId'] ?? '',
+              courseId: extra['courseId'],
+            ),
+          );
+        },
+      ),
+
+      // Mulai Kelas route with CourseProvider and CertificateProvider
       GoRoute(
         path: '/kelas/mulai/:courseId',
         builder: (context, state) {
           final courseId = state.pathParameters['courseId'] ?? '';
-          return MulaiKelasScreen(courseId: courseId);
+          return MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: getIt<CourseProvider>()),
+              ChangeNotifierProvider(create: (_) => getIt<CertificateProvider>()),
+            ],
+            child: MulaiKelasScreen(courseId: courseId),
+          );
         },
       ),
 
-      // Quiz route
+      // Quiz route with QuizProvider (singleton)
       GoRoute(
         path: '/quiz/:quizId',
         builder: (context, state) {
           final quizId = state.pathParameters['quizId'] ?? '';
-          return QuizScreen(quizId: quizId);
+          return ChangeNotifierProvider.value(
+            value: getIt<QuizProvider>(),
+            child: QuizScreen(quizId: quizId),
+          );
         },
       ),
 
-      // Quiz Result route
+      // Quiz Result route with QuizProvider (singleton)
       GoRoute(
         path: '/quiz/result/:quizId',
         builder: (context, state) {
           final quizId = state.pathParameters['quizId'] ?? '';
           final extra = state.extra as Map<String, dynamic>? ?? {};
           
-          return QuizResultScreen(
-            quizId: quizId,
-            score: extra['score'] ?? 0,
-            kkm: extra['kkm'] ?? 60,
-            isPassed: extra['isPassed'] ?? false,
-            correctCount: extra['correctCount'] ?? 0,
-            totalQuestions: extra['totalQuestions'] ?? 0,
-            questions: extra['questions'] ?? [],
-            selectedAnswers: extra['selectedAnswers'] ?? {},
-            courseTitle: extra['courseTitle'] ?? '',
+          return ChangeNotifierProvider<QuizProvider>.value(
+            value: getIt<QuizProvider>(),
+            child: QuizResultScreen(
+              quizId: quizId,
+              score: extra['score'] ?? 0,
+              kkm: extra['kkm'] ?? 60,
+              isPassed: extra['isPassed'] ?? false,
+              correctCount: extra['correctCount'] ?? 0,
+              totalQuestions: extra['totalQuestions'] ?? 0,
+              courseTitle: extra['courseTitle'] ?? '',
+              courseId: extra['courseId']?.toString(),
+            ),
+          );
+        },
+      ),
+
+      // Ebook Viewer route
+      GoRoute(
+        path: '/ebook/view',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>? ?? {};
+          return EbookViewerScreen(
+            title: extra['title'] ?? 'E-Book',
+            url: extra['url'] ?? '',
           );
         },
       ),

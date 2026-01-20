@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lentera_karir/styles/styles.dart';
 import 'package:lentera_karir/widgets/universal/buttons/primary_button.dart';
+import 'package:lentera_karir/data/models/module_model.dart';
 
-/// Model untuk materi item (video/quiz)
+/// Model untuk materi item (video/quiz/ebook)
 class MateriItem {
   final String title;
   final String duration;
   final bool isQuiz;
+  final bool isEbook;
 
   const MateriItem({
     required this.title,
     required this.duration,
     this.isQuiz = false,
+    this.isEbook = false,
   });
 }
 
@@ -35,6 +38,10 @@ class PreviewWidget extends StatefulWidget {
   final int totalVideos;
   final int completedVideos;
   final VoidCallback onBuyTap;
+  final VoidCallback? onStartTap;
+  final bool isEnrolled;
+  final bool isCheckingEnrollment;
+  final List<ModuleModel>? modules; // Backend modules
 
   const PreviewWidget({
     super.key,
@@ -42,6 +49,10 @@ class PreviewWidget extends StatefulWidget {
     this.totalVideos = 22,
     this.completedVideos = 0,
     required this.onBuyTap,
+    this.onStartTap,
+    this.isEnrolled = false,
+    this.isCheckingEnrollment = false,
+    this.modules,
   });
 
   @override
@@ -73,38 +84,70 @@ class _PreviewWidgetState extends State<PreviewWidget>
       curve: Curves.easeOutCubic,
     ));
 
-    materiSections = [
-      MateriSection(
-        title: 'Fundamental & Orientasi Karier Digital',
-        isExpanded: true,
-        items: [
-          const MateriItem(title: 'Analisis Tren', duration: '09:20'),
-          const MateriItem(title: 'Pengembangan Digital Mindset', duration: '12:45'),
-          const MateriItem(title: 'Manajemen Media Sosial', duration: '15:30'),
-          const MateriItem(title: 'Quiz Sesi 1', duration: '18:00', isQuiz: true),
-        ],
-      ),
-      MateriSection(
-        title: 'Kompetensi Teknis Dasar',
-        items: [
-          const MateriItem(title: 'SEO & Content Marketing', duration: '14:20'),
-          const MateriItem(title: 'Copywriting untuk Digital', duration: '16:30'),
-          const MateriItem(title: 'Analisis Data Sederhana', duration: '18:45'),
-          const MateriItem(title: 'Tools Digital Marketing', duration: '12:15'),
-          const MateriItem(title: 'Quiz Sesi 2', duration: '20:00', isQuiz: true),
-        ],
-      ),
-      MateriSection(
-        title: 'Strategi Pengembangan Professional',
-        items: [
-          const MateriItem(title: 'Personal Branding', duration: '15:30'),
-          const MateriItem(title: 'Membangun Portofolio', duration: '17:20'),
-          const MateriItem(title: 'Networking & LinkedIn', duration: '13:45'),
-          const MateriItem(title: 'Career Planning', duration: '16:00'),
-          const MateriItem(title: 'Quiz Final', duration: '25:00', isQuiz: true),
-        ],
-      ),
-    ];
+    // Use backend modules if available, otherwise use placeholder
+    if (widget.modules != null && widget.modules!.isNotEmpty) {
+      materiSections = [
+        MateriSection(
+          title: 'Daftar Modul',
+          isExpanded: true,
+          items: widget.modules!.map((m) {
+            final isQuiz = m.quizId != null || m.type == 'quiz';
+            final hasVideo = m.videoUrl != null && m.videoUrl!.isNotEmpty;
+            final hasEbook = m.ebookUrl != null && m.ebookUrl!.isNotEmpty;
+            
+            String duration = '${m.duration} min';
+            if (hasVideo) {
+              duration = '${m.duration > 0 ? m.duration : 10} min';
+            } else if (hasEbook) {
+              duration = 'PDF';
+            } else if (isQuiz) {
+              duration = 'Quiz';
+            }
+            
+            return MateriItem(
+              title: m.title,
+              duration: duration,
+              isQuiz: isQuiz,
+              isEbook: hasEbook,
+            );
+          }).toList(),
+        ),
+      ];
+    } else {
+      // Fallback dummy data
+      materiSections = [
+        MateriSection(
+          title: 'Fundamental & Orientasi Karier Digital',
+          isExpanded: true,
+          items: [
+            const MateriItem(title: 'Analisis Tren', duration: '09:20'),
+            const MateriItem(title: 'Pengembangan Digital Mindset', duration: '12:45'),
+            const MateriItem(title: 'Manajemen Media Sosial', duration: '15:30'),
+            const MateriItem(title: 'Quiz Sesi 1', duration: '18:00', isQuiz: true),
+          ],
+        ),
+        MateriSection(
+          title: 'Kompetensi Teknis Dasar',
+          items: [
+            const MateriItem(title: 'SEO & Content Marketing', duration: '14:20'),
+            const MateriItem(title: 'Copywriting untuk Digital', duration: '16:30'),
+            const MateriItem(title: 'Analisis Data Sederhana', duration: '18:45'),
+            const MateriItem(title: 'Tools Digital Marketing', duration: '12:15'),
+            const MateriItem(title: 'Quiz Sesi 2', duration: '20:00', isQuiz: true),
+          ],
+        ),
+        MateriSection(
+          title: 'Strategi Pengembangan Professional',
+          items: [
+            const MateriItem(title: 'Personal Branding', duration: '15:30'),
+            const MateriItem(title: 'Membangun Portofolio', duration: '17:20'),
+            const MateriItem(title: 'Networking & LinkedIn', duration: '13:45'),
+            const MateriItem(title: 'Career Planning', duration: '16:00'),
+            const MateriItem(title: 'Quiz Final', duration: '25:00', isQuiz: true),
+          ],
+        ),
+      ];
+    }
   }
 
   @override
@@ -362,7 +405,11 @@ class _PreviewWidgetState extends State<PreviewWidget>
             ),
             padding: const EdgeInsets.all(6),
             child: SvgPicture.asset(
-              item.isQuiz ? 'assets/preview/quiz.svg' : 'assets/preview/play.svg',
+              item.isQuiz 
+                  ? 'assets/preview/quiz.svg' 
+                  : item.isEbook 
+                      ? 'assets/preview/ebook.svg'
+                      : 'assets/preview/play.svg',
               colorFilter: ColorFilter.mode(
                 AppColors.primaryPurple,
                 BlendMode.srcIn,
@@ -391,6 +438,23 @@ class _PreviewWidgetState extends State<PreviewWidget>
   }
 
   Widget _buildBuyButton() {
+    // Show loading while checking enrollment
+    if (widget.isCheckingEnrollment) {
+      return SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 8),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: const SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ),
+      );
+    }
+
+    // Show different button based on enrollment status
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.only(bottom: 8),
@@ -399,8 +463,10 @@ class _PreviewWidgetState extends State<PreviewWidget>
         child: SizedBox(
           width: double.infinity,
           child: PrimaryButton(
-            text: 'Beli Kelas',
-            onPressed: widget.onBuyTap,
+            text: widget.isEnrolled ? 'Mulai Belajar' : 'Beli Kelas',
+            onPressed: widget.isEnrolled 
+              ? (widget.onStartTap ?? widget.onBuyTap)
+              : widget.onBuyTap,
           ),
         ),
       ),

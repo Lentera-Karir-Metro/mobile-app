@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lentera_karir/styles/styles.dart';
+import 'package:lentera_karir/widgets/universal/adaptive_image.dart';
 
 /// Card untuk menampilkan learning path di list
 /// Berdasarkan design: path_card.svg
@@ -10,17 +11,17 @@ import 'package:lentera_karir/styles/styles.dart';
 /// - Border radius 12px, shadow, white background
 class PathCard extends StatelessWidget {
   final String title;
-  final String duration;
+  final String? duration;
   final String courses;
-  final String imagePath;
+  final String? imagePath;
   final VoidCallback? onTap;
 
   const PathCard({
     super.key,
     required this.title,
-    required this.duration,
+    this.duration,
     required this.courses,
-    this.imagePath = 'assets/hardcode/sample_image.png',
+    this.imagePath,
     this.onTap,
   });
 
@@ -45,26 +46,13 @@ class PathCard extends StatelessWidget {
         child: Row(
           children: [
             // Thumbnail image - diperbesar
-            ClipRRect(
+            AdaptiveImage(
+              imagePath: imagePath,
+              fallbackAsset: FallbackAssets.sampleImage,
+              width: 130,
+              height: 90,
+              fit: BoxFit.cover,
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                imagePath,
-                width: 130,
-                height: 90,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 130,
-                    height: 90,
-                    color: AppColors.textSecondary.withValues(alpha: 0.1),
-                    child: Icon(
-                      Icons.image,
-                      size: 40,
-                      color: AppColors.textSecondary,
-                    ),
-                  );
-                },
-              ),
             ),
             
             const SizedBox(width: 16),
@@ -90,57 +78,27 @@ class PathCard extends StatelessWidget {
                   
                   const SizedBox(height: 12),
                   
-                  // Duration and courses badges
-                  Row(
-                    children: [
-                      // Duration badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: AppColors.primaryPurple,
-                            width: 1,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          duration,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.primaryPurple,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                  // Courses badge only
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: AppColors.primaryPurple,
+                        width: 1,
                       ),
-                      
-                      const SizedBox(width: 10),
-                      
-                      // Courses badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                            color: AppColors.primaryPurple,
-                            width: 1,
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Text(
-                          courses,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppColors.primaryPurple,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      courses,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.primaryPurple,
+                        fontWeight: FontWeight.w500,
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),

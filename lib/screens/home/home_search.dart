@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:lentera_karir/styles/styles.dart';
 import 'package:lentera_karir/widgets/universal/buttons/back_button.dart';
+import 'package:lentera_karir/providers/catalog_provider.dart';
+import 'package:lentera_karir/data/models/course_model.dart';
 
 class HomeSearchScreen extends StatefulWidget {
   const HomeSearchScreen({super.key});
@@ -12,34 +16,16 @@ class HomeSearchScreen extends StatefulWidget {
 
 class _HomeSearchScreenState extends State<HomeSearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  List<Map<String, dynamic>> _searchResults = [];
-
-  // Dummy data untuk hasil pencarian
-  final List<Map<String, dynamic>> _allCourses = [
-    {
-      'id': '1',
-      'title': 'Bootcamp: Kick-Start Karier Digital',
-      'price': 'Rp250.000',
-      'image': 'assets/hardcode/sample_image.png',
-    },
-    {
-      'id': '2',
-      'title': 'Tools Digital Pendukung Karier Professionalmu',
-      'price': 'Rp150.000',
-      'image': 'assets/hardcode/sample_image.png',
-    },
-    {
-      'id': '3',
-      'title': 'Digital Marketing Bisnis',
-      'price': 'Rp250.000',
-      'image': 'assets/hardcode/sample_image.png',
-    },
-  ];
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _searchController.addListener(_onSearchChanged);
+    // Load all courses initially
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CatalogProvider>().loadCourses();
+    });
   }
 
   @override
@@ -50,19 +36,8 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
   }
 
   void _onSearchChanged() {
-    final query = _searchController.text.toLowerCase();
-    if (query.isEmpty) {
-      setState(() {
-        _searchResults = [];
-      });
-      return;
-    }
-
     setState(() {
-      _searchResults = _allCourses
-          .where((course) =>
-              course['title'].toLowerCase().contains(query))
-          .toList();
+      _searchQuery = _searchController.text.toLowerCase();
     });
   }
 
@@ -110,6 +85,14 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
                       Icons.search,
                       color: AppColors.textSecondary,
                     ),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, color: AppColors.textSecondary),
+                            onPressed: () {
+                              _searchController.clear();
+                            },
+                          )
+                        : null,
                     border: InputBorder.none,
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -124,33 +107,95 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
             
             // Search Results
             Expanded(
-              child: _searchResults.isEmpty
-                  ? Center(
-                      child: Text(
-                        _searchController.text.isEmpty
-                            ? 'Ketik untuk mencari kursus'
-                            : 'Tidak ada hasil ditemukan',
-                        style: AppTextStyles.body1.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
+              child: Consumer<CatalogProvider>(
+                builder: (context, provider, child) {
+                  if (provider.isLoading) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  // Filter courses based on search query
+                  final allCourses = provider.courses;
+                  final filteredCourses = _searchQuery.isEmpty
+                      ? <CourseModel>[]
+                      : allCourses.where((course) {
+                          final title = course.title.toLowerCase();
+                          final category = (course.category ?? '').toLowerCase();
+                          final description = (course.description ?? '').toLowerCase();
+                          return title.contains(_searchQuery) ||
+                              category.contains(_searchQuery) ||
+                              description.contains(_searchQuery);
+                        }).toList();
+
+                  if (_searchQuery.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.search,
+                            size: 64,
+                            color: AppColors.textSecondary.withValues(alpha: 0.5),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Ketik untuk mencari kursus',
+                            style: AppTextStyles.body1.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: _searchResults.length,
-                      itemBuilder: (context, index) {
-                        final course = _searchResults[index];
-                        return _SearchResultItem(
-                          title: course['title'],
-                          price: course['price'],
-                          image: course['image'],
-                          onTap: () {
-                            // Navigate to detail kelas
-                            context.push('/kelas/detail/${course['id']}');
-                          },
-                        );
-                      },
-                    ),
+                    );
+                  }
+
+                  if (filteredCourses.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.search_off,
+                            size: 64,
+                            color: AppColors.textSecondary.withValues(alpha: 0.5),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'Tidak ada hasil ditemukan',
+                            style: AppTextStyles.body1.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Coba kata kunci lain',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: filteredCourses.length,
+                    itemBuilder: (context, index) {
+                      final course = filteredCourses[index];
+                      return _SearchResultItem(
+                        title: course.title,
+                        price: course.formattedPrice,
+                        image: course.thumbnailUrl,
+                        category: course.category,
+                        onTap: () {
+                          // Navigate to detail kelas
+                          context.push('/kelas/detail/${course.id}');
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
             ),
           ],
         ),
@@ -162,13 +207,15 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
 class _SearchResultItem extends StatelessWidget {
   final String title;
   final String price;
-  final String image;
+  final String? image;
+  final String? category;
   final VoidCallback onTap;
 
   const _SearchResultItem({
     required this.title,
     required this.price,
-    required this.image,
+    this.image,
+    this.category,
     required this.onTap,
   });
 
@@ -188,23 +235,18 @@ class _SearchResultItem extends StatelessWidget {
             // Course Image - Rectangle shape
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: Image.asset(
-                image,
-                width: 90,
-                height: 60,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 90,
-                    height: 60,
-                    color: AppColors.divider,
-                    child: const Icon(
-                      Icons.image,
-                      color: AppColors.textSecondary,
-                    ),
-                  );
-                },
-              ),
+              child: image != null && image!.startsWith('http')
+                  ? CachedNetworkImage(
+                      imageUrl: image!,
+                      width: 90,
+                      height: 60,
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => _buildPlaceholder(),
+                      errorWidget: (context, url, error) => _buildPlaceholder(),
+                      memCacheWidth: 180,
+                      memCacheHeight: 120,
+                    )
+                  : _buildPlaceholder(),
             ),
             const SizedBox(width: 12),
             
@@ -213,6 +255,22 @@ class _SearchResultItem extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (category != null && category!.isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryPurple.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        category!,
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.primaryPurple,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ),
                   Text(
                     title,
                     style: AppTextStyles.body1.copyWith(
@@ -222,7 +280,7 @@ class _SearchResultItem extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Text(
                     price,
                     style: AppTextStyles.body1.copyWith(
@@ -235,6 +293,21 @@ class _SearchResultItem extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      width: 90,
+      height: 60,
+      decoration: BoxDecoration(
+        color: AppColors.divider,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: const Icon(
+        Icons.image,
+        color: AppColors.textSecondary,
       ),
     );
   }

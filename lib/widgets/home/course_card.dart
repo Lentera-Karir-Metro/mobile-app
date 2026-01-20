@@ -1,23 +1,34 @@
 import 'package:flutter/material.dart';
 import 'package:lentera_karir/styles/styles.dart';
+import 'package:lentera_karir/widgets/universal/adaptive_image.dart';
 
-/// Card untuk menampilkan course dengan thumbnail, title, dan harga
+/// Card untuk menampilkan course dengan thumbnail, title, harga, diskon, dan mentor
 class CourseCard extends StatelessWidget {
-  final String thumbnailPath;
+  final String? thumbnailPath;
   final String title;
-  final String price;
+  final String? price; // Made nullable for learning path cards
+  final String? originalPrice; // Harga asli sebelum diskon
+  final String? mentorName;
+  final String? mentorPhoto;
+  final int? courseCount; // Number of courses in learning path
   final VoidCallback onTap;
 
   const CourseCard({
     super.key,
-    required this.thumbnailPath,
+    this.thumbnailPath,
     required this.title,
-    required this.price,
+    this.price,
+    this.originalPrice,
+    this.mentorName,
+    this.mentorPhoto,
+    this.courseCount,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final bool hasDiscount = originalPrice != null && originalPrice!.isNotEmpty && originalPrice != price;
+    
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -46,21 +57,13 @@ class CourseCard extends StatelessWidget {
                 color: AppColors.textSecondary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: ClipRRect(
+              child: AdaptiveImage(
+                imagePath: thumbnailPath,
+                fallbackAsset: FallbackAssets.sampleImage,
+                width: 191,
+                height: 95,
+                fit: BoxFit.cover,
                 borderRadius: BorderRadius.circular(12),
-                child: Image.asset(
-                  thumbnailPath,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Center(
-                      child: Icon(
-                        Icons.image,
-                        size: 40,
-                        color: AppColors.textSecondary,
-                      ),
-                    );
-                  },
-                ),
               ),
             ),
             
@@ -104,17 +107,89 @@ class CourseCard extends StatelessWidget {
                       },
                     ),
                     
+                    const SizedBox(height: 4),
+                    
+                    // Mentor info
+                    if (mentorName != null && mentorName!.isNotEmpty)
+                      Row(
+                        children: [
+                          if (mentorPhoto != null && mentorPhoto!.isNotEmpty)
+                            Container(
+                              width: 16,
+                              height: 16,
+                              margin: const EdgeInsets.only(right: 4),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: AdaptiveImage(
+                                  imagePath: mentorPhoto,
+                                  fallbackAsset: FallbackAssets.sampleImage,
+                                  width: 16,
+                                  height: 16,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                          Expanded(
+                            child: Text(
+                              mentorName!,
+                              style: AppTextStyles.body3.copyWith(
+                                color: AppColors.textSecondary,
+                                fontSize: 10,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    
                     const Spacer(),
                     
-                    // Price (purple, bold, ukuran lebih kecil) - nempel ke bawah
-                    Text(
-                      price,
-                      style: AppTextStyles.body2.copyWith(
-                        color: AppColors.primaryPurple,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
+                    // Show course count if available, otherwise show price
+                    if (courseCount != null && courseCount! > 0) ...[
+                      // Course count for learning paths
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.play_circle_outline,
+                            size: 14,
+                            color: AppColors.primaryPurple,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            '$courseCount Kursus',
+                            style: AppTextStyles.body2.copyWith(
+                              color: AppColors.primaryPurple,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
+                    ] else if (price != null && price!.isNotEmpty) ...[
+                      // Price section with discount
+                      if (hasDiscount) ...[
+                        // Original price with strikethrough
+                        Text(
+                          originalPrice!,
+                          style: AppTextStyles.body3.copyWith(
+                            color: AppColors.textSecondary,
+                            fontSize: 10,
+                            decoration: TextDecoration.lineThrough,
+                            decorationColor: AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                      // Final price (purple, bold)
+                      Text(
+                        price!,
+                        style: AppTextStyles.body2.copyWith(
+                          color: AppColors.primaryPurple,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

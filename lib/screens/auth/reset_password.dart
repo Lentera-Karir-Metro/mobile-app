@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../styles/styles.dart';
 import '../../widgets/universal/inputs/primary_text_field.dart';
 import '../../widgets/universal/buttons/primary_button.dart';
+import '../../providers/auth_provider.dart';
 
 /// Screen ganti password baru (setelah klik link dari email)
 /// Design reference: Reset password (ganti password).svg
@@ -11,8 +13,11 @@ import '../../widgets/universal/buttons/primary_button.dart';
 /// - Input password baru dan konfirmasi password
 /// - Validasi password match
 /// - Success dialog dan navigate ke login
+/// - Terintegrasi dengan AuthProvider untuk backend auth
 class ResetPasswordScreen extends StatefulWidget {
-  const ResetPasswordScreen({super.key});
+  final String? token; // Token dari deep link email
+  
+  const ResetPasswordScreen({super.key, this.token});
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -22,7 +27,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -31,23 +35,38 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     super.dispose();
   }
 
-  /// Handle reset password - untuk saat ini tampilkan popup sukses
+  /// Handle reset password dengan AuthProvider
   void _handleResetPassword() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // Simulate API call
-      await Future.delayed(const Duration(milliseconds: 800));
-
+      // Cek token tersedia
+      if (widget.token == null || widget.token!.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Token reset tidak valid'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      final authProvider = context.read<AuthProvider>();
+      
+      final success = await authProvider.resetPassword(
+        widget.token!,
+        _passwordController.text,
+      );
+      
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-
-        // Show success dialog
-        _showSuccessDialog();
+        if (success) {
+          _showSuccessDialog();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(authProvider.errorMessage ?? 'Gagal reset password'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
@@ -125,6 +144,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = context.watch<AuthProvider>().isLoading;
+    
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
@@ -205,9 +226,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   Center(
                     child: PrimaryButton(
                       text: 'Kirim',
-                      onPressed: _isLoading ? null : _handleResetPassword,
+                      onPressed: isLoading ? null : _handleResetPassword,
                       width: 245,
-                      isLoading: _isLoading,
+                      isLoading: isLoading,
                     ),
                   ),
                 ],

@@ -1,11 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:lentera_karir/styles/styles.dart';
 import 'package:lentera_karir/widgets/universal/buttons/back_button.dart';
 import 'package:lentera_karir/widgets/universal/inputs/search_bar.dart';
+import 'package:lentera_karir/widgets/universal/adaptive_image.dart';
+import 'package:lentera_karir/providers/ebook_provider.dart';
+import 'package:lentera_karir/data/models/ebook_model.dart';
 
-class QuickEbookScreen extends StatelessWidget {
+class QuickEbookScreen extends StatefulWidget {
   const QuickEbookScreen({super.key});
+
+  @override
+  State<QuickEbookScreen> createState() => _QuickEbookScreenState();
+}
+
+class _QuickEbookScreenState extends State<QuickEbookScreen> {
+  
+  
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<EbookProvider>().loadMyEbooks();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -53,23 +73,60 @@ class QuickEbookScreen extends StatelessWidget {
               
               // Search bar
               const CustomSearchBar(
-                hintText: 'Cari judul ebook',
+                hintText: 'Cari ebook berdasarkan judul kursus',
               ),
               
               const SizedBox(height: 24),
               
               // Ebook List
               Expanded(
-                child: ListView(
-                  children: [
-                    _buildEbookCard(
-                      'Ebook Orientasi Karier Digital',
-                    ),
-                    const SizedBox(height: 16),
-                    _buildEbookCard(
-                      'Ebook Asah Digital Mindset',
-                    ),
-                  ],
+                child: Consumer<EbookProvider>(
+                  builder: (context, provider, child) {
+                    if (provider.isLoading) {
+                      return const Center(
+                        child: CircularProgressIndicator(),
+                      );
+                    }
+
+                    if (provider.errorMessage != null) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              provider.errorMessage!,
+                              style: AppTextStyles.body1.copyWith(color: Colors.red),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () => provider.loadMyEbooks(),
+                              child: const Text('Coba Lagi'),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    if (provider.ebooks.isEmpty) {
+                      return Center(
+                        child: Text(
+                          'Belum ada ebook yang diunduh',
+                          style: AppTextStyles.body1.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      itemCount: provider.ebooks.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        return _buildEbookCard(provider.ebooks[index]);
+                      },
+                    );
+                  },
                 ),
               ),
             ],
@@ -79,7 +136,7 @@ class QuickEbookScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEbookCard(String title) {
+  Widget _buildEbookCard(EbookModel ebook) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -96,44 +153,43 @@ class QuickEbookScreen extends StatelessWidget {
       child: Row(
         children: [
           // Ebook thumbnail (9:16 ratio)
-          ClipRRect(
+          AdaptiveImage(
+            imagePath: ebook.coverUrl,
+            fallbackAsset: FallbackAssets.sampleImage,
+            width: 70,
+            height: 86, // 9:16 ratio disesuaikan dengan card
+            fit: BoxFit.cover,
             borderRadius: BorderRadius.circular(12),
-            child: Container(
-              width: 70,
-              height: 86, // 9:16 ratio disesuaikan dengan card
-              decoration: BoxDecoration(
-                color: Colors.grey[300],
-              ),
-              child: Image.asset(
-                'assets/hardcode/sample_image.png',
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    color: Colors.grey[300],
-                    child: const Icon(
-                      Icons.image,
-                      color: Colors.grey,
-                      size: 40,
-                    ),
-                  );
-                },
-              ),
-            ),
           ),
           
           const SizedBox(width: 16),
           
-          // Ebook details
+          // Ebook details - centered vertically
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Title
+                // Course title (if available) - BOLD like quick_kelas and quick_sertif
+                if (ebook.courseTitle != null && ebook.courseTitle!.isNotEmpty) ...[
+                  Text(
+                    ebook.courseTitle!,
+                    style: AppTextStyles.body1.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                ],
+                
+                // Ebook Title
                 Text(
-                  title,
+                  ebook.title,
                   style: AppTextStyles.body2.copyWith(
-                    color: AppColors.textPrimary,
-                    fontWeight: FontWeight.w500,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w400,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -141,12 +197,28 @@ class QuickEbookScreen extends StatelessWidget {
                 
                 const SizedBox(height: 8),
                 
-                // Read now link
-                Text(
-                  'Baca Sekarang',
-                  style: AppTextStyles.body2.copyWith(
-                    color: AppColors.primaryPurple,
-                    fontWeight: FontWeight.bold,
+                // Read now link - opens PDF directly in browser/PDF reader
+                GestureDetector(
+                  onTap: () async {
+                    if (ebook.fileUrl != null && ebook.fileUrl!.isNotEmpty) {
+                      final uri = Uri.parse(ebook.fileUrl!);
+                      if (await canLaunchUrl(uri)) {
+                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Tidak dapat membuka file')),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  child: Text(
+                    'Baca Sekarang',
+                    style: AppTextStyles.body2.copyWith(
+                      color: AppColors.primaryPurple,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],

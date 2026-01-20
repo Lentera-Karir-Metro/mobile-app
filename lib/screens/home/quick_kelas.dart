@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:lentera_karir/styles/styles.dart';
 import 'package:lentera_karir/widgets/universal/buttons/back_button.dart';
 import 'package:lentera_karir/widgets/home/progress_card.dart';
 import 'package:lentera_karir/widgets/universal/inputs/search_bar.dart';
+import 'package:lentera_karir/providers/course_provider.dart';
 
 class QuickKelasScreen extends StatefulWidget {
   const QuickKelasScreen({super.key});
@@ -15,6 +17,15 @@ class QuickKelasScreen extends StatefulWidget {
 class _QuickKelasScreenState extends State<QuickKelasScreen> {
   String selectedMenu = 'Semua Kelas';
   String selectedFilter = 'Semua Kelas';
+
+  @override
+  void initState() {
+    super.initState();
+    // Load my courses when screen opens
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<CourseProvider>().loadMyCourses();
+    });
+  }
 
   @override
 /*************  ✨ Windsurf Command ⭐  *************/
@@ -136,126 +147,90 @@ class _QuickKelasScreenState extends State<QuickKelasScreen> {
   }
 
   Widget _buildFilteredContent() {
-    if (selectedFilter == 'Semua Kelas') {
-      return _buildAllClasses();
-    } else if (selectedFilter == 'On Progress') {
-      return _buildProgressClasses();
-    } else if (selectedFilter == 'Selesai') {
-      return _buildCompletedClasses();
-    }
-    return const SizedBox.shrink();
-  }
+    return Consumer<CourseProvider>(
+      builder: (context, provider, child) {
+        if (provider.isLoading) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(32.0),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
 
-  // All Classes - ProgressCard with "Lihat selengkapnya"
-  Widget _buildAllClasses() {
-    return Column(
-      children: [
-        ProgressCard(
-          thumbnailPath: 'assets/hardcode/sample_image.png',
-          title: 'Kursus Flutter Development',
-          subtitle: 'Lihat selengkapnya',
-          progressPercent: 30,
-          onTap: () {
-            context.push('/kelas/mulai/1');
-          },
-        ),
-        const SizedBox(height: 16),
-        ProgressCard(
-          thumbnailPath: 'assets/hardcode/sample_image.png',
-          title: 'Kursus UI/UX Design',
-          subtitle: 'Lihat selengkapnya',
-          progressPercent: 0,
-          onTap: () {
-            context.push('/kelas/mulai/2');
-          },
-        ),
-        const SizedBox(height: 16),
-        ProgressCard(
-          thumbnailPath: 'assets/hardcode/sample_image.png',
-          title: 'Kursus Backend Development',
-          subtitle: 'Lihat selengkapnya',
-          progressPercent: 16,
-          onTap: () {
-            context.push('/kelas/mulai/3');
-          },
-        ),
-        const SizedBox(height: 16),
-        ProgressCard(
-          thumbnailPath: 'assets/hardcode/sample_image.png',
-          title: 'Kursus Data Science',
-          subtitle: 'Lihat selengkapnya',
-          progressPercent: 100,
-          onTap: () {
-            context.push('/kelas/mulai/4');
-          },
-        ),
-        const SizedBox(height: 24),
-      ],
+        if (provider.errorMessage != null) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                children: [
+                  Text(
+                    provider.errorMessage!,
+                    style: AppTextStyles.body1.copyWith(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => provider.loadMyCourses(),
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        List<dynamic> courses;
+        if (selectedFilter == 'Semua Kelas') {
+          courses = provider.myCourses;
+        } else if (selectedFilter == 'On Progress') {
+          courses = provider.inProgressCourses;
+        } else {
+          courses = provider.completedCourses;
+        }
+
+        if (courses.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Text(
+                selectedFilter == 'Semua Kelas'
+                    ? 'Belum ada kelas yang diikuti'
+                    : selectedFilter == 'On Progress'
+                        ? 'Tidak ada kelas yang sedang berjalan'
+                        : 'Belum ada kelas yang selesai',
+                style: AppTextStyles.body1.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          );
+        }
+
+        return _buildCourseList(courses);
+      },
     );
   }
 
-  // On Progress Classes - ProgressCard with "Lihat selengkapnya"
-  Widget _buildProgressClasses() {
+  Widget _buildCourseList(List<dynamic> courses) {
     return Column(
       children: [
-        ProgressCard(
-          thumbnailPath: 'assets/hardcode/sample_image.png',
-          title: 'Kursus Flutter Development',
-          subtitle: 'Lihat selengkapnya',
-          progressPercent: 30,
-          onTap: () {
-            context.push('/kelas/mulai/1');
-          },
-        ),
-        const SizedBox(height: 16),
-        ProgressCard(
-          thumbnailPath: 'assets/hardcode/sample_image.png',
-          title: 'Kursus UI/UX Design',
-          subtitle: 'Lihat selengkapnya',
-          progressPercent: 62,
-          onTap: () {
-            context.push('/kelas/mulai/2');
-          },
-        ),
-        const SizedBox(height: 16),
-        ProgressCard(
-          thumbnailPath: 'assets/hardcode/sample_image.png',
-          title: 'Kursus Backend Development',
-          subtitle: 'Lihat selengkapnya',
-          progressPercent: 16,
-          onTap: () {
-            context.push('/kelas/mulai/3');
-          },
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
-  // Completed Classes - ProgressCard with "Lihat selengkapnya"
-  Widget _buildCompletedClasses() {
-    return Column(
-      children: [
-        ProgressCard(
-          thumbnailPath: 'assets/hardcode/sample_image.png',
-          title: 'Kursus Dasar Programming',
-          subtitle: 'Lihat selengkapnya',
-          progressPercent: 100,
-          onTap: () {
-            context.push('/kelas/mulai/5');
-          },
-        ),
-        const SizedBox(height: 16),
-        ProgressCard(
-          thumbnailPath: 'assets/hardcode/sample_image.png',
-          title: 'Kursus Git & GitHub',
-          subtitle: 'Lihat selengkapnya',
-          progressPercent: 100,
-          onTap: () {
-            context.push('/kelas/mulai/6');
-          },
-        ),
-        const SizedBox(height: 24),
+        ...courses.map((course) {
+          final progress = course.progressPercent ?? 0;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: ProgressCard(
+              thumbnailPath: course.thumbnailUrl ?? 'assets/hardcode/sample_image.png',
+              title: course.title ?? 'Untitled Course',
+              subtitle: 'Lihat selengkapnya',
+              progressPercent: progress,
+              onTap: () {
+                context.push('/kelas/mulai/${course.id}');
+              },
+            ),
+          );
+        }),
+        const SizedBox(height: 8),
       ],
     );
   }

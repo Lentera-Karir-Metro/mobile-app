@@ -4,19 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:lentera_karir/styles/styles.dart';
 import 'package:lentera_karir/widgets/universal/buttons/back_button.dart';
 import 'package:lentera_karir/widgets/universal/buttons/primary_button.dart';
-import 'package:lentera_karir/screens/quiz/quiz.dart';
 
 /// Halaman Hasil Quiz
 class QuizResultScreen extends StatelessWidget {
   final String quizId;
-  final int score;
-  final int kkm;
+  final int score; // Score as percentage 0-100
+  final int kkm; // KKM/Pass threshold as percentage 0-100
   final bool isPassed;
   final int correctCount;
   final int totalQuestions;
-  final List<QuizQuestion> questions;
-  final Map<int, int> selectedAnswers;
   final String courseTitle;
+  final String? courseId; // For navigation back to course
 
   const QuizResultScreen({
     super.key,
@@ -26,59 +24,37 @@ class QuizResultScreen extends StatelessWidget {
     required this.isPassed,
     required this.correctCount,
     required this.totalQuestions,
-    required this.questions,
-    required this.selectedAnswers,
     required this.courseTitle,
+    this.courseId,
   });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-      body: Stack(
+      body: Column(
         children: [
-          // Main content
-          SingleChildScrollView(
-            child: Column(
-              children: [
-                // Header Banner
-                _buildHeader(),
+          // Header Banner
+          _buildHeader(),
 
-                // Result Card
-                _buildResultCard(),
-
-                const SizedBox(height: 100),
-              ],
+          // Result Card - Scrollable
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 100),
+              child: _buildResultCard(),
             ),
-          ),
-
-          // Back Button
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: CustomBackButton(
-                backgroundColor: AppColors.cardBackground,
-                iconColor: AppColors.textPrimary,
-              ),
-            ),
-          ),
-
-          // Bottom Button
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildBottomButton(context),
           ),
         ],
       ),
+      // Bottom Button - Fixed at bottom
+      bottomNavigationBar: _buildBottomButton(context),
     );
   }
 
   Widget _buildHeader() {
     return SizedBox(
       width: double.infinity,
-      height: 220,
+      height: 180,
       child: Stack(
         children: [
           // Background banner
@@ -95,11 +71,22 @@ class QuizResultScreen extends StatelessWidget {
             ),
           ),
 
-          // Content
+          // Back Button
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: CustomBackButton(
+                backgroundColor: AppColors.cardBackground,
+                iconColor: AppColors.textPrimary,
+              ),
+            ),
+          ),
+
+          // Content - positioned below back button area
           Positioned(
             left: 20,
             right: 20,
-            bottom: 20,
+            top: 80, // Position right below back button
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -111,25 +98,24 @@ class QuizResultScreen extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     height: 1.2,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Icon(Icons.public_rounded, size: 16, color: Colors.white),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Released date March 2025',
-                      style: AppTextStyles.caption.copyWith(color: Colors.white),
+                    SvgPicture.asset(
+                      'assets/kelas/globe.svg',
+                      width: 16,
+                      height: 16,
+                      colorFilter: const ColorFilter.mode(
+                        Colors.white,
+                        BlendMode.srcIn,
+                      ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.update_rounded, size: 16, color: Colors.white),
                     const SizedBox(width: 8),
                     Text(
-                      'Last updated August 2025',
+                      'Score: $score%',
                       style: AppTextStyles.caption.copyWith(color: Colors.white),
                     ),
                   ],
@@ -196,133 +182,46 @@ class QuizResultScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Answer Review
-          ...questions.asMap().entries.map((entry) {
-            final index = entry.key;
-            final question = entry.value;
-            final selectedIndex = selectedAnswers[question.id];
-            final isCorrect = selectedIndex == question.correctAnswerIndex;
-
-            return _buildAnswerReview(
-              number: index + 1,
-              question: question,
-              selectedIndex: selectedIndex,
-              isCorrect: isCorrect,
-            );
-          }),
+          // Summary info
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                _buildSummaryRow('Total Soal', '$totalQuestions'),
+                const SizedBox(height: 8),
+                _buildSummaryRow('Jawaban Benar', '$correctCount'),
+                const SizedBox(height: 8),
+                _buildSummaryRow('Jawaban Salah', '${totalQuestions - correctCount}'),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildAnswerReview({
-    required int number,
-    required QuizQuestion question,
-    required int? selectedIndex,
-    required bool isCorrect,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Question
-          Text(
-            '$number. ${question.question}',
-            style: AppTextStyles.body2.copyWith(
-              color: AppColors.textPrimary,
-              height: 1.5,
-            ),
+  Widget _buildSummaryRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          label,
+          style: AppTextStyles.body2.copyWith(
+            color: AppColors.textSecondary,
           ),
-          const SizedBox(height: 10),
-
-          // Options with result
-          ...question.options.asMap().entries.map((entry) {
-            final optionIndex = entry.key;
-            final optionText = entry.value;
-            final isSelected = selectedIndex == optionIndex;
-            final isCorrectAnswer = optionIndex == question.correctAnswerIndex;
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: _buildResultOption(
-                text: optionText,
-                isSelected: isSelected,
-                isCorrectAnswer: isCorrectAnswer,
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildResultOption({
-    required String text,
-    required bool isSelected,
-    required bool isCorrectAnswer,
-  }) {
-    Color bgColor = AppColors.backgroundColor;
-    Color borderColor = Colors.black.withAlpha(26);
-    Color textColor = AppColors.textPrimary;
-    Widget? trailingIcon;
-
-    if (isSelected && isCorrectAnswer) {
-      // Benar
-      bgColor = const Color(0xFF34C759).withAlpha(26);
-      borderColor = const Color(0xFF34C759);
-      textColor = const Color(0xFF34C759);
-      trailingIcon = SvgPicture.asset(
-        'assets/quiz/check.svg',
-        width: 20,
-        height: 20,
-      );
-    } else if (isSelected && !isCorrectAnswer) {
-      // Salah - jawaban user
-      bgColor = const Color(0xFFFF3B30).withAlpha(26);
-      borderColor = const Color(0xFFFF3B30);
-      textColor = const Color(0xFFFF3B30);
-      trailingIcon = SvgPicture.asset(
-        'assets/quiz/false.svg',
-        width: 20,
-        height: 20,
-      );
-    } else if (!isSelected && isCorrectAnswer) {
-      // Jawaban yang benar (untuk ditandai)
-      bgColor = const Color(0xFF34C759).withAlpha(26);
-      borderColor = const Color(0xFF34C759);
-      textColor = const Color(0xFF34C759);
-      trailingIcon = SvgPicture.asset(
-        'assets/quiz/check.svg',
-        width: 20,
-        height: 20,
-      );
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: borderColor, width: 1),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              text,
-              style: AppTextStyles.body3.copyWith(
-                color: textColor,
-              ),
-            ),
+        ),
+        Text(
+          value,
+          style: AppTextStyles.body2.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
-          if (trailingIcon != null) ...[
-            const SizedBox(width: 8),
-            trailingIcon,
-          ],
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -349,11 +248,15 @@ class QuizResultScreen extends StatelessWidget {
           text: isPassed ? 'Selesai' : 'Ulangi Quiz',
           onPressed: () {
             if (isPassed) {
-              // Kembali ke halaman mulai kelas
-              context.go('/kelas/mulai/1');
+              // Navigate back to course if courseId is available, otherwise go home
+              if (courseId != null && courseId!.isNotEmpty) {
+                context.go('/kelas/mulai/$courseId');
+              } else {
+                context.go('/home');
+              }
             } else {
-              // Ulangi quiz - ke halaman quiz dengan quizId yang sama
-              context.go('/quiz/$quizId');
+              // Retry quiz - replace current route
+              context.pushReplacement('/quiz/$quizId');
             }
           },
         ),

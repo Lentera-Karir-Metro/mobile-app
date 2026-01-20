@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import '../../styles/styles.dart';
 import '../../widgets/universal/inputs/primary_text_field.dart';
 import '../../widgets/universal/buttons/primary_button.dart';
+import '../../providers/auth_provider.dart';
 
 /// Screen register - Sign Up
 /// Design reference: Sign up.svg
@@ -11,6 +13,7 @@ import '../../widgets/universal/buttons/primary_button.dart';
 /// - Input email, password, dan confirm password menggunakan PrimaryTextField
 /// - Link ke login screen
 /// - Validasi password match
+/// - Terintegrasi dengan AuthProvider untuk backend auth
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
 
@@ -20,49 +23,55 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  bool _isLoading = false;
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  /// Handle register - untuk saat ini langsung ke login screen
+  /// Handle register dengan AuthProvider
   void _handleRegister() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // Simulate API call
-      await Future.delayed(const Duration(milliseconds: 800));
-
+      final authProvider = context.read<AuthProvider>();
+      
+      final response = await authProvider.register(
+        name: _nameController.text.trim(),
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+      
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-        
-        // Show success dan navigate to login
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registrasi berhasil! Silakan login'),
-            backgroundColor: AppColors.primaryPurple,
-          ),
-        );
-        
-        context.go('/login');
+        if (response.success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Registrasi berhasil! Silakan cek email untuk verifikasi.'),
+              backgroundColor: AppColors.primaryPurple,
+            ),
+          );
+          context.go('/login');
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(response.message ?? 'Registrasi gagal'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isLoading = context.watch<AuthProvider>().isLoading;
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       body: SafeArea(
@@ -112,6 +121,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
 
                   const SizedBox(height: 40),
+
+                  // Name Field
+                  PrimaryTextField(
+                    labelText: 'Full Name',
+                    hintText: 'Input your full name',
+                    controller: _nameController,
+                    keyboardType: TextInputType.name,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Nama tidak boleh kosong';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 20),
 
                   // Email Field
                   PrimaryTextField(
@@ -176,9 +201,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Center(
                     child: PrimaryButton(
                       text: 'Create Account',
-                      onPressed: _isLoading ? null : _handleRegister,
+                      onPressed: isLoading ? null : _handleRegister,
                       width: 245,
-                      isLoading: _isLoading,
+                      isLoading: isLoading,
                     ),
                   ),
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lentera_karir/styles/styles.dart';
+import 'package:lentera_karir/widgets/universal/adaptive_image.dart';
 
 /// Widget untuk menampilkan SATU CARD BESAR berisi semua courses dalam learning path
 /// dengan line dan circle indicator di dalamnya
@@ -33,12 +34,24 @@ class PathCoursesCard extends StatelessWidget {
       child: Column(
         children: List.generate(
           courses.length,
-          (index) => _buildCourseItem(
-            course: courses[index],
-            isFirst: index == 0,
-            isLast: index == courses.length - 1,
-            onTap: () => onCourseTap(courses[index]['id']),
-          ),
+          (index) {
+            // Check if previous and next courses are completed for line coloring
+            final bool isPreviousCompleted = index > 0 
+                ? (courses[index - 1]['isCompleted'] ?? false) 
+                : false;
+            final bool isNextCompleted = index < courses.length - 1 
+                ? (courses[index + 1]['isCompleted'] ?? false) 
+                : false;
+            
+            return _buildCourseItem(
+              course: courses[index],
+              isFirst: index == 0,
+              isLast: index == courses.length - 1,
+              isPreviousCompleted: isPreviousCompleted,
+              isNextCompleted: isNextCompleted,
+              onTap: () => onCourseTap(courses[index]['id']),
+            );
+          },
         ),
       ),
     );
@@ -48,11 +61,17 @@ class PathCoursesCard extends StatelessWidget {
     required Map<String, dynamic> course,
     required bool isFirst,
     required bool isLast,
+    required bool isPreviousCompleted,
+    required bool isNextCompleted,
     required VoidCallback onTap,
   }) {
     final bool isCompleted = course['isCompleted'] ?? false;
+    // Circle is purple only when this course is completed
     final String circleColor = isCompleted ? '#6C3FD1' : '#747474';
-    final String lineColor = '#747474';
+    // Top line is purple only if BOTH current and previous are completed (like web)
+    final String topLineColor = (isCompleted && isPreviousCompleted) ? '#6C3FD1' : '#747474';
+    // Bottom line is purple only if BOTH current and next are completed (like web)
+    final String bottomLineColor = (isCompleted && isNextCompleted) ? '#6C3FD1' : '#747474';
 
     return Padding(
       padding: EdgeInsets.only(
@@ -70,7 +89,7 @@ class PathCoursesCard extends StatelessWidget {
                   // Top line (jika bukan first) - menggunakan line.svg
                   if (!isFirst)
                     SvgPicture.string(
-                      '<svg width="2" height="25" viewBox="0 0 2 25" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 25L1 0" stroke="$lineColor" stroke-width="2"/></svg>',
+                      '<svg width="2" height="25" viewBox="0 0 2 25" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 25L1 0" stroke="$topLineColor" stroke-width="2"/></svg>',
                       width: 2,
                       height: 25,
                     ),
@@ -86,7 +105,7 @@ class PathCoursesCard extends StatelessWidget {
                   if (!isLast)
                     Expanded(
                       child: SvgPicture.string(
-                        '<svg width="2" height="100%" viewBox="0 0 2 160" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 160L1 0" stroke="$lineColor" stroke-width="2"/></svg>',
+                        '<svg width="2" height="100%" viewBox="0 0 2 160" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1 160L1 0" stroke="$bottomLineColor" stroke-width="2"/></svg>',
                         width: 2,
                         fit: BoxFit.fill,
                       ),
@@ -110,26 +129,13 @@ class PathCoursesCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Course thumbnail
-                      ClipRRect(
+                      AdaptiveImage(
+                        imagePath: course['imagePath'],
+                        fallbackAsset: FallbackAssets.sampleImage,
+                        width: 70,
+                        height: 70,
+                        fit: BoxFit.cover,
                         borderRadius: BorderRadius.circular(8),
-                        child: Image.asset(
-                          course['imagePath'] ?? 'assets/hardcode/sample_image.png',
-                          width: 70,
-                          height: 70,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) {
-                            return Container(
-                              width: 70,
-                              height: 70,
-                              color: AppColors.textSecondary.withValues(alpha: 0.1),
-                              child: Icon(
-                                Icons.image,
-                                color: AppColors.textSecondary,
-                                size: 30,
-                              ),
-                            );
-                          },
-                        ),
                       ),
 
                       const SizedBox(width: 12),

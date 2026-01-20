@@ -1,24 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:lentera_karir/styles/styles.dart';
 import 'package:lentera_karir/widgets/universal/buttons/back_button.dart';
 import 'package:lentera_karir/widgets/universal/buttons/primary_button.dart';
-
-/// Model untuk pertanyaan quiz
-class QuizQuestion {
-  final int id;
-  final String question;
-  final List<String> options;
-  final int correctAnswerIndex;
-
-  const QuizQuestion({
-    required this.id,
-    required this.question,
-    required this.options,
-    required this.correctAnswerIndex,
-  });
-}
+import 'package:lentera_karir/providers/quiz_provider.dart';
 
 /// Halaman Quiz - mengerjakan soal-soal quiz
 class QuizScreen extends StatefulWidget {
@@ -34,104 +21,109 @@ class QuizScreen extends StatefulWidget {
 }
 
 class _QuizScreenState extends State<QuizScreen> {
-  // Quiz data
-  final String courseTitle = "Bootcamp: Kick-start Karier Digital";
-  final int kkm = 60; // Nilai KKM
-  
-  // Dummy questions
-  final List<QuizQuestion> questions = const [
-    QuizQuestion(
-      id: 1,
-      question: 'Prinsip utama Digital Mindset yang mendorong eksperimen dan peningkatan berkelanjutan dalam lingkungan kerja yang serba cepat adalah...',
-      options: ['Fixed Budget', 'Top-Down Hierarchy', 'Agility (Ketangkasan)', 'Waterfall Method'],
-      correctAnswerIndex: 2,
-    ),
-    QuizQuestion(
-      id: 2,
-      question: 'Aktivitas yang termasuk dalam kategori Off-Page SEO adalah...',
-      options: ['Pembangunan backlink berkualitas dari situs otoritatif', 'Optimasi kecepatan website', 'Perbaikan struktur URL', 'Penggunaan tag H1 yang relevan'],
-      correctAnswerIndex: 0,
-    ),
-    QuizQuestion(
-      id: 3,
-      question: 'Call-to-Action (CTA) yang efektif sebaiknya menggunakan bahasa yang pasif dan umum agar audiens tidak merasa tertekan.',
-      options: ['TRUE', 'FALSE'],
-      correctAnswerIndex: 1,
-    ),
-    QuizQuestion(
-      id: 4,
-      question: 'Organic Traffic adalah pengunjung yang datang ke website melalui tautan iklan berbayar (PPC) di mesin pencari.',
-      options: ['TRUE', 'FALSE'],
-      correctAnswerIndex: 1,
-    ),
-    QuizQuestion(
-      id: 5,
-      question: 'Mengapa Content Pillar (Pilar Konten) penting dalam strategi media sosial?',
-      options: [
-        'Untuk memastikan setiap post diiklankan',
-        'Untuk menentukan jam posting terbaik',
-        'Untuk membatasi jumlah platform yang digunakan',
-        'Untuk menjaga konsistensi tema dan relevansi konten'
-      ],
-      correctAnswerIndex: 3,
-    ),
-  ];
-
-  // State
-  final Map<int, int> _selectedAnswers = {};
   bool _showConfirmDialog = false;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<QuizProvider>().startQuiz(widget.quizId);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: Stack(
-        children: [
-          // Main content
-          SingleChildScrollView(
-            child: Column(
-              children: [
-                // Header Banner
-                _buildHeader(),
+    return Consumer<QuizProvider>(
+      builder: (context, provider, child) {
+        if (provider.isLoading && provider.quizStart == null) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor,
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
 
-                // Quiz Content Card
-                _buildQuizCard(),
-
-                const SizedBox(height: 100),
-              ],
-            ),
-          ),
-
-          // Back Button
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: CustomBackButton(
-                backgroundColor: AppColors.cardBackground,
-                iconColor: AppColors.textPrimary,
+        if (provider.errorMessage != null && provider.quizStart == null) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    provider.errorMessage!,
+                    style: AppTextStyles.body1.copyWith(color: Colors.red),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => provider.startQuiz(widget.quizId),
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
               ),
             ),
-          ),
+          );
+        }
 
-          // Bottom Button
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: _buildBottomButton(),
-          ),
+        if (provider.quizStart == null) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor,
+            body: const Center(child: Text('Quiz tidak ditemukan')),
+          );
+        }
 
-          // Confirm Dialog
-          if (_showConfirmDialog) _buildConfirmDialog(),
-        ],
-      ),
+        final quiz = provider.quizStart!.quiz;
+        final courseTitle = quiz.title;
+        final kkm = quiz.passingScore;
+        final courseId = quiz.courseId;
+        final bestScore = provider.quizStart!.bestScore;
+
+        return Scaffold(
+          backgroundColor: AppColors.backgroundColor,
+          body: Stack(
+            children: [
+              // Main content
+              Column(
+                children: [
+                  // Header Banner
+                  _buildHeader(courseTitle, kkm, bestScore),
+
+                  // Quiz Content Card - Scrollable
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _buildQuizCard(provider),
+                    ),
+                  ),
+                ],
+              ),
+
+              // Back Button
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: CustomBackButton(
+                    backgroundColor: AppColors.cardBackground,
+                    iconColor: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+
+              // Confirm Dialog
+              if (_showConfirmDialog) _buildConfirmDialog(provider, courseId),
+            ],
+          ),
+          // Bottom Button - Fixed at bottom using bottomNavigationBar
+          bottomNavigationBar: _buildBottomButton(provider),
+        );
+      },
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(String courseTitle, int kkm, int? bestScore) {
     return SizedBox(
       width: double.infinity,
-      height: 220,
+      height: 200,
       child: Stack(
         children: [
           // Background banner
@@ -148,11 +140,11 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
           ),
 
-          // Content
+          // Content - positioned below back button area with small gap
           Positioned(
             left: 20,
             right: 20,
-            bottom: 20,
+            top: 90, // Position below back button with small gap
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -164,14 +156,26 @@ class _QuizScreenState extends State<QuizScreen> {
                     fontWeight: FontWeight.bold,
                     height: 1.2,
                   ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    const Icon(Icons.public_rounded, size: 16, color: Colors.white),
+                    SvgPicture.asset(
+                      'assets/kelas/globe.svg',
+                      width: 16,
+                      height: 16,
+                      colorFilter: const ColorFilter.mode(
+                        Colors.white,
+                        BlendMode.srcIn,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     Text(
-                      'Released date March 2025',
+                      bestScore != null 
+                          ? 'Best Score: $bestScore' 
+                          : 'Best Score: -',
                       style: AppTextStyles.caption.copyWith(color: Colors.white),
                     ),
                   ],
@@ -179,10 +183,18 @@ class _QuizScreenState extends State<QuizScreen> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.update_rounded, size: 16, color: Colors.white),
+                    SvgPicture.asset(
+                      'assets/kelas/last_update.svg',
+                      width: 16,
+                      height: 16,
+                      colorFilter: const ColorFilter.mode(
+                        Colors.white,
+                        BlendMode.srcIn,
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     Text(
-                      'Last updated August 2025',
+                      'KKM: $kkm%',
                       style: AppTextStyles.caption.copyWith(color: Colors.white),
                     ),
                   ],
@@ -195,7 +207,9 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  Widget _buildQuizCard() {
+  Widget _buildQuizCard(QuizProvider provider) {
+    final questions = provider.quizStart?.quiz.questions ?? [];
+    
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
@@ -227,14 +241,18 @@ class _QuizScreenState extends State<QuizScreen> {
           ...questions.asMap().entries.map((entry) {
             final index = entry.key;
             final question = entry.value;
-            return _buildQuestionItem(index + 1, question);
+            return _buildQuestionItem(index + 1, question, provider);
           }),
         ],
       ),
     );
   }
 
-  Widget _buildQuestionItem(int number, QuizQuestion question) {
+  Widget _buildQuestionItem(int number, dynamic question, QuizProvider provider) {
+    final String questionId = question.id?.toString() ?? '';
+    final questionText = question.question ?? question.text ?? '';
+    final options = question.options ?? [];
+    
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
       child: Column(
@@ -242,7 +260,7 @@ class _QuizScreenState extends State<QuizScreen> {
         children: [
           // Question text
           Text(
-            '$number. ${question.question}',
+            '$number. $questionText',
             style: AppTextStyles.body1.copyWith(
               color: AppColors.textPrimary,
               height: 1.5,
@@ -250,11 +268,12 @@ class _QuizScreenState extends State<QuizScreen> {
           ),
           const SizedBox(height: 12),
 
-          // Options
-          ...question.options.asMap().entries.map((entry) {
-            final optionIndex = entry.key;
-            final optionText = entry.value;
-            final isSelected = _selectedAnswers[question.id] == optionIndex;
+          // Options - use option.id (String) instead of index
+          ...options.map((option) {
+            final String optionId = option.id?.toString() ?? '';
+            final optionText = option.text ?? option.toString();
+            final selectedAnswer = provider.getSelectedAnswer(questionId);
+            final isSelected = selectedAnswer == optionId;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -262,9 +281,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 text: optionText,
                 isSelected: isSelected,
                 onTap: () {
-                  setState(() {
-                    _selectedAnswers[question.id] = optionIndex;
-                  });
+                  provider.selectAnswer(questionId, optionId);
                 },
               ),
             );
@@ -309,7 +326,7 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  Widget _buildBottomButton() {
+  Widget _buildBottomButton(QuizProvider provider) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -329,8 +346,8 @@ class _QuizScreenState extends State<QuizScreen> {
       child: SafeArea(
         top: false,
         child: PrimaryButton(
-          text: 'Submit Quiz',
-          onPressed: () {
+          text: provider.isLoading ? 'Memproses...' : 'Submit Quiz',
+          onPressed: provider.isLoading ? null : () {
             setState(() {
               _showConfirmDialog = true;
             });
@@ -340,7 +357,7 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  Widget _buildConfirmDialog() {
+  Widget _buildConfirmDialog(QuizProvider provider, String? courseId) {
     return Container(
       color: Colors.black.withAlpha(128),
       child: Center(
@@ -390,7 +407,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     child: PrimaryButton(
                       text: 'Selesai',
                       onPressed: () {
-                        _submitQuiz();
+                        _submitQuiz(provider, courseId);
                       },
                     ),
                   ),
@@ -431,31 +448,37 @@ class _QuizScreenState extends State<QuizScreen> {
     );
   }
 
-  void _submitQuiz() {
-    // Calculate score
-    int correctCount = 0;
-    for (var question in questions) {
-      if (_selectedAnswers[question.id] == question.correctAnswerIndex) {
-        correctCount++;
-      }
-    }
+  Future<void> _submitQuiz(QuizProvider provider, String? courseId) async {
+    setState(() {
+      _showConfirmDialog = false;
+    });
     
-    final score = ((correctCount / questions.length) * 100).round();
-    final isPassed = score >= kkm;
-
-    // Navigate to result
-    context.push(
-      '/quiz/result/${widget.quizId}',
-      extra: {
-        'score': score,
-        'kkm': kkm,
-        'isPassed': isPassed,
-        'correctCount': correctCount,
-        'totalQuestions': questions.length,
-        'questions': questions,
-        'selectedAnswers': _selectedAnswers,
-        'courseTitle': courseTitle,
-      },
-    );
+    // Submit quiz via provider
+    await provider.submitQuiz();
+    
+    if (provider.result != null && mounted) {
+      final result = provider.result!;
+      
+      // Navigate to result - use score and passThreshold from result model (already in percentage 0-100)
+      context.pushReplacement(
+        '/quiz/result/${widget.quizId}',
+        extra: {
+          'score': result.score, // Already percentage 0-100
+          'kkm': result.passThreshold, // Already percentage 0-100
+          'isPassed': result.isPassed,
+          'correctCount': result.correctAnswers,
+          'totalQuestions': result.totalQuestions,
+          'courseTitle': provider.quizStart?.quiz.title ?? 'Quiz',
+          'courseId': courseId, // Pass courseId for navigation back to course
+        },
+      );
+    } else if (provider.errorMessage != null && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(provider.errorMessage!),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }

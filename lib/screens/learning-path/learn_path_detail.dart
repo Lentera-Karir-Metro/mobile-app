@@ -1,24 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:lentera_karir/styles/styles.dart';
 import 'package:lentera_karir/widgets/universal/buttons/back_button.dart';
 import 'package:lentera_karir/widgets/learn_path/line_card.dart';
-import 'package:lentera_karir/screens/kelas/detail_kelas.dart';
-import 'package:lentera_karir/screens/learning-path/learn_path_detail_dialogs.dart';
+import 'package:lentera_karir/providers/learning_path_provider.dart';
+import 'package:lentera_karir/data/models/learning_path_model.dart';
 
 class LearnPathDetailScreen extends StatefulWidget {
   final String pathId;
-  final String title;
-  final String description;
-  final String profileSection;
-  final String profileDescription;
 
   const LearnPathDetailScreen({
     super.key,
     required this.pathId,
-    required this.title,
-    required this.description,
-    required this.profileSection,
-    required this.profileDescription,
   });
 
   @override
@@ -26,89 +20,103 @@ class LearnPathDetailScreen extends StatefulWidget {
 }
 
 class _LearnPathDetailScreenState extends State<LearnPathDetailScreen> {
-  bool _isFollowing = false;
+  @override
+  void initState() {
+    super.initState();
+    // Defer data loading until after the first frame to avoid Provider errors
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
+  }
 
-  // Sample courses data untuk learning path
-  List<Map<String, dynamic>> _getCourses() {
-    return [
-      {
-        'id': '1',
-        'title': 'Dasar-Dasar Desain Grafis & Teori Warna',
-        'category': 'Design',
-        'instructor': 'Ayu Putri',
-        'description': 'Mempelajari prinsip dasar komposisi visual, tata letak, penggunaan ruang negatif, dan menciptakan desain yang estetis dan fungsional.',
-        'isCompleted': true,
-      },
-      {
-        'id': '2',
-        'title': 'Mastering Figma untuk UI/UX Design',
-        'category': 'Design',
-        'instructor': 'Setyo Ari',
-        'description': 'Pelatihan intensif penggunaan Figma mulai dari pembuatan vector, auto-layout, hingga sistem komponen untuk efisiensi desain produk.',
-        'isCompleted': false,
-      },
-      {
-        'id': '3',
-        'title': 'UX Research: Memahami Kebutuhan Pengguna',
-        'category': 'Design',
-        'instructor': 'Setyo Ari',
-        'description': 'Pelatihan intensif penggunaan Figma mulai dari pembuatan vector, auto-layout, hingga sistem komponen untuk efisiensi desain produk.',
-        'isCompleted': false,
-      },
-    ];
+  Future<void> _loadData() async {
+    if (!mounted) return;
+    // Use loadLearningPathContent for enrolled users (returns progress data)
+    // This includes is_completed status for each course
+    await context.read<LearningPathProvider>().loadLearningPathContent(widget.pathId);
   }
 
   @override
   Widget build(BuildContext context) {
-    final courses = _getCourses();
-    
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: Stack(
-        children: [
-          // Scrollable content
-          SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Banner Header
-                _buildBannerHeader(context),
-                
-                // Info Card (tanpa horizontal padding agar sama lebar dengan courses card)
-                Transform.translate(
-                  offset: const Offset(0, -40),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: _buildInfoCard(),
+    return Consumer<LearningPathProvider>(
+      builder: (context, provider, child) {
+        final learningPath = provider.currentLearningPath;
+        
+        if (provider.isLoading && learningPath == null) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor,
+            body: const Center(child: CircularProgressIndicator()),
+          );
+        }
+        
+        if (learningPath == null) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Gagal memuat learning path'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadData,
+                    child: const Text('Coba Lagi'),
                   ),
-                ),
-                
-                // Courses section dengan negative margin untuk kompensasi offset
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Transform.translate(
-                    offset: const Offset(0, -20),
-                    child: _buildCoursesSection(context, courses),
-                  ),
-                ),
-                
-                const SizedBox(height: 40),
-              ],
-            ),
-          ),
-          
-          // Floating Back Button
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: const CustomBackButton(
-                backgroundColor: Colors.white,
-                iconColor: AppColors.textPrimary,
+                ],
               ),
             ),
+          );
+        }
+
+        return Scaffold(
+          backgroundColor: AppColors.backgroundColor,
+          body: Stack(
+            children: [
+              // Scrollable content
+              SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Banner Header
+                    _buildBannerHeader(context),
+                    
+                    // Info Card
+                    Transform.translate(
+                      offset: const Offset(0, -40),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: _buildInfoCard(learningPath),
+                      ),
+                    ),
+                    
+                    // Courses section
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Transform.translate(
+                        offset: const Offset(0, -20),
+                        child: _buildCoursesSection(context, learningPath),
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+              
+              // Floating Back Button
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: const CustomBackButton(
+                    backgroundColor: Colors.white,
+                    iconColor: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -160,7 +168,7 @@ class _LearnPathDetailScreenState extends State<LearnPathDetailScreen> {
     );
   }
 
-  Widget _buildInfoCard() {
+  Widget _buildInfoCard(LearningPathModel learningPath) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(24),
@@ -186,7 +194,7 @@ class _LearnPathDetailScreenState extends State<LearnPathDetailScreen> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              'Design',
+              learningPath.level ?? 'Learning Path',
               style: AppTextStyles.body3.copyWith(
                 color: AppColors.primaryPurple,
                 fontWeight: FontWeight.w600,
@@ -198,7 +206,7 @@ class _LearnPathDetailScreenState extends State<LearnPathDetailScreen> {
           
           // Title
           Text(
-            widget.title,
+            learningPath.title,
             style: AppTextStyles.heading3.copyWith(
               color: AppColors.textPrimary,
               fontWeight: FontWeight.bold,
@@ -210,57 +218,10 @@ class _LearnPathDetailScreenState extends State<LearnPathDetailScreen> {
           
           // Description
           Text(
-            widget.description,
+            learningPath.description ?? '',
             style: AppTextStyles.body2.copyWith(
               color: AppColors.textPrimary,
               height: 1.6,
-            ),
-          ),
-          
-          const SizedBox(height: 20),
-          
-          // CTA Button - Ikuti Path / Berhenti Ikuti
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton(
-              onPressed: () {
-                if (_isFollowing) {
-                  // Berhenti mengikuti path
-                  showUnfollowDialog(context, () {
-                    setState(() {
-                      _isFollowing = false;
-                    });
-                  });
-                } else {
-                  // Ikuti path dan tampilkan success dialog
-                  showSuccessFollowDialog(context, () {
-                    setState(() {
-                      _isFollowing = true;
-                    });
-                  });
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _isFollowing 
-                    ? AppColors.backgroundColor 
-                    : AppColors.primaryPurple,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  side: _isFollowing 
-                      ? BorderSide(color: AppColors.primaryPurple, width: 2)
-                      : BorderSide.none,
-                ),
-                elevation: 0,
-              ),
-              child: Text(
-                _isFollowing ? 'Berhenti Ikuti' : 'Ikuti Path',
-                style: AppTextStyles.button.copyWith(
-                  color: _isFollowing 
-                      ? AppColors.primaryPurple 
-                      : Colors.white,
-                ),
-              ),
             ),
           ),
         ],
@@ -268,51 +229,48 @@ class _LearnPathDetailScreenState extends State<LearnPathDetailScreen> {
     );
   }
 
-  Widget _buildCoursesSection(BuildContext context, List<Map<String, dynamic>> courses) {
+  Widget _buildCoursesSection(BuildContext context, LearningPathModel learningPath) {
+    // Convert courses from LearningPathModel to Map format for PathCoursesCard
+    final courses = learningPath.courses.map((course) => {
+      'id': course.id.toString(),
+      'title': course.title,
+      'category': course.category ?? 'Course',
+      'instructor': course.mentor?.name ?? course.instructor ?? 'Instructor',
+      'description': course.description ?? '',
+      'imagePath': course.thumbnail ?? course.thumbnailUrl,
+      // Use isCompleted from backend (set by getLearningPathContent)
+      // Falls back to progress check if isCompleted not available
+      'isCompleted': course.isCompleted || (course.progressPercent ?? 0) >= 100,
+    }).toList();
+    
+    // Sort courses: completed courses at top (like web implementation)
+    courses.sort((a, b) {
+      final aCompleted = a['isCompleted'] as bool;
+      final bCompleted = b['isCompleted'] as bool;
+      if (aCompleted && !bCompleted) return -1;
+      if (!aCompleted && bCompleted) return 1;
+      return 0;
+    });
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Section header
-        Row(
-          children: [
-            Text(
-              '${courses.length} KELAS',
-              style: AppTextStyles.subtitle2.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              '•',
-              style: AppTextStyles.subtitle2.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Text(
-              '6 jam',
-              style: AppTextStyles.body2.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
+        Text(
+          '${courses.length} KELAS',
+          style: AppTextStyles.subtitle2.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+          ),
         ),
 
         const SizedBox(height: 20),
 
-        // Satu card besar berisi semua courses
+        // Card berisi semua courses
         PathCoursesCard(
           courses: courses,
           onCourseTap: (courseId) {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => DetailKelasScreen(
-                  courseId: courseId,
-                ),
-              ),
-            );
+            context.push('/kelas/detail/$courseId');
           },
         ),
         

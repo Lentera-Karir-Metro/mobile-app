@@ -1,22 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lentera_karir/styles/styles.dart';
+import 'package:lentera_karir/data/models/module_model.dart';
 
-/// Model untuk materi item (video/quiz) dengan status selesai
+/// Model untuk materi item (video/quiz/ebook) dengan status selesai
 class MateriMulaiItem {
   final String id;
   final String title;
-  final String duration;
   final bool isQuiz;
+  final bool isEbook;
   final bool isCompleted;
+  final bool isLocked;
+  final String? ebookUrl;
+  final String? quizId; // Quiz ID for quiz modules
 
   const MateriMulaiItem({
     required this.id,
     required this.title,
-    required this.duration,
     this.isQuiz = false,
+    this.isEbook = false,
     this.isCompleted = false,
+    this.isLocked = false,
+    this.ebookUrl,
+    this.quizId,
   });
+  
+  /// Factory to create from ModuleModel
+  factory MateriMulaiItem.fromModule(ModuleModel module) {
+    return MateriMulaiItem(
+      id: module.id,
+      title: module.title,
+      isQuiz: module.type == 'quiz',
+      isEbook: module.type == 'ebook',
+      isCompleted: module.isCompleted,
+      isLocked: module.isLocked,
+      ebookUrl: module.type == 'ebook' ? module.ebookUrl : null,
+      quizId: module.quizId, // Already String? from ModuleModel
+    );
+  }
 }
 
 /// Model untuk section materi
@@ -33,19 +54,23 @@ class MateriMulaiSection {
 }
 
 /// Preview Widget untuk halaman Mulai Kelas - Bottom sheet swipe up/down
-/// Mirip dengan preview.dart tapi dengan checklist untuk item yang selesai
+/// Sekarang menerima data dinamis dari modules API
 class PreviewMulaiKelasWidget extends StatefulWidget {
   final int totalVideos;
   final int completedVideos;
+  final List<ModuleModel>? modules; // Dynamic modules from API
   final Function(MateriMulaiItem)? onItemTap;
   final Function(MateriMulaiItem)? onQuizTap;
+  final Function(MateriMulaiItem)? onEbookTap;
 
   const PreviewMulaiKelasWidget({
     super.key,
     required this.totalVideos,
     required this.completedVideos,
+    this.modules,
     this.onItemTap,
     this.onQuizTap,
+    this.onEbookTap,
   });
 
   @override
@@ -77,37 +102,55 @@ class _PreviewMulaiKelasWidgetState extends State<PreviewMulaiKelasWidget>
       curve: Curves.easeOutCubic,
     ));
 
-    // Dummy data - TODO: Replace with actual API data
-    materiSections = [
-      MateriMulaiSection(
-        title: 'Fundamental & Orientasi Karier Digital',
-        isExpanded: true,
-        items: [
-          const MateriMulaiItem(id: 'v1', title: 'Analisis Tren', duration: '09:20', isCompleted: true),
-          const MateriMulaiItem(id: 'v2', title: 'Pengembangan Digital Mindset', duration: '12:45', isCompleted: true),
-          const MateriMulaiItem(id: 'v3', title: 'Manajemen Media Sosial', duration: '15:30', isCompleted: false),
-          const MateriMulaiItem(id: 'q1', title: 'Quiz Sesi 1', duration: '18:00', isQuiz: true, isCompleted: false),
-        ],
-      ),
-      MateriMulaiSection(
-        title: 'Kompetensi Teknis Dasar',
-        items: [
-          const MateriMulaiItem(id: 'v4', title: 'SEO & Content Marketing', duration: '14:20', isCompleted: false),
-          const MateriMulaiItem(id: 'v5', title: 'Copywriting untuk Digital', duration: '16:30', isCompleted: false),
-          const MateriMulaiItem(id: 'v6', title: 'Analisis Data Sederhana', duration: '18:45', isCompleted: false),
-          const MateriMulaiItem(id: 'v7', title: 'Tools Digital Marketing', duration: '12:15', isCompleted: false),
-          const MateriMulaiItem(id: 'q2', title: 'Quiz Sesi 2', duration: '20:00', isQuiz: true, isCompleted: false),
-        ],
-      ),
-      MateriMulaiSection(
-        title: 'Strategi Pengembangan Professional',
-        items: [
-          const MateriMulaiItem(id: 'v8', title: 'Personal Branding', duration: '15:30', isCompleted: false),
-          const MateriMulaiItem(id: 'v9', title: 'Membangun Portofolio', duration: '17:20', isCompleted: false),
-          const MateriMulaiItem(id: 'q3', title: 'Quiz Final', duration: '25:00', isQuiz: true, isCompleted: false),
-        ],
-      ),
-    ];
+    _buildMateriSections();
+  }
+  
+  @override
+  void didUpdateWidget(PreviewMulaiKelasWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Rebuild sections when modules change
+    if (widget.modules != oldWidget.modules) {
+      _buildMateriSections();
+    }
+  }
+  
+  void _buildMateriSections() {
+    // Build from dynamic modules if available
+    if (widget.modules != null && widget.modules!.isNotEmpty) {
+      // Group modules by type for display
+      final videoItems = widget.modules!
+          .where((m) => m.type == 'video')
+          .map((m) => MateriMulaiItem.fromModule(m))
+          .toList();
+      
+      final quizItems = widget.modules!
+          .where((m) => m.type == 'quiz')
+          .map((m) => MateriMulaiItem.fromModule(m))
+          .toList();
+      
+      // Note: E-Book section is removed from preview as per request
+      // Ebooks are accessible via filter tabs in mulai_kelas.dart
+      
+      materiSections = [];
+      
+      if (videoItems.isNotEmpty) {
+        materiSections.add(MateriMulaiSection(
+          title: 'Video Pembelajaran',
+          isExpanded: true,
+          items: videoItems,
+        ));
+      }
+      
+      if (quizItems.isNotEmpty) {
+        materiSections.add(MateriMulaiSection(
+          title: 'Quiz',
+          items: quizItems,
+        ));
+      }
+    } else {
+      // Empty state - no modules
+      materiSections = [];
+    }
   }
 
   @override
@@ -325,72 +368,99 @@ class _PreviewMulaiKelasWidgetState extends State<PreviewMulaiKelasWidget>
   }
 
   Widget _buildMateriItem(MateriMulaiItem item) {
+    final isLocked = item.isLocked;
+    
     return InkWell(
-      onTap: () {
-        if (item.isQuiz) {
-          widget.onQuizTap?.call(item);
-        } else {
-          widget.onItemTap?.call(item);
-        }
-      },
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        child: Row(
-          children: [
-            // Icon play/quiz
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.primaryPurple.withAlpha(26),
-                borderRadius: BorderRadius.circular(8),
+      onTap: isLocked 
+          ? () {
+              // Show locked message
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Selesaikan modul sebelumnya terlebih dahulu'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+          : () {
+              if (item.isQuiz) {
+                widget.onQuizTap?.call(item);
+              } else if (item.isEbook) {
+                widget.onEbookTap?.call(item);
+              } else {
+                widget.onItemTap?.call(item);
+              }
+            },
+      child: Opacity(
+        opacity: isLocked ? 0.5 : 1.0,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              // Icon play/quiz/ebook or lock icon
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: isLocked 
+                      ? Colors.grey.withAlpha(26)
+                      : AppColors.primaryPurple.withAlpha(26),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.all(6),
+                child: isLocked
+                    ? Icon(
+                        Icons.lock,
+                        color: Colors.grey.shade500,
+                        size: 18,
+                      )
+                    : SvgPicture.asset(
+                        item.isQuiz 
+                            ? 'assets/preview/quiz.svg' 
+                            : item.isEbook 
+                                ? 'assets/preview/ebook.svg'
+                                : 'assets/preview/play.svg',
+                        colorFilter: const ColorFilter.mode(
+                          AppColors.primaryPurple,
+                          BlendMode.srcIn,
+                        ),
+                      ),
               ),
-              padding: const EdgeInsets.all(6),
-              child: SvgPicture.asset(
-                item.isQuiz ? 'assets/preview/quiz.svg' : 'assets/preview/play.svg',
-                colorFilter: const ColorFilter.mode(
-                  AppColors.primaryPurple,
-                  BlendMode.srcIn,
+              const SizedBox(width: 12),
+              
+              // Title
+              Expanded(
+                child: Text(
+                  item.title,
+                  style: AppTextStyles.body2.copyWith(
+                    color: isLocked ? Colors.grey : AppColors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            
-            // Title
-            Expanded(
-              child: Text(
-                item.title,
-                style: AppTextStyles.body2.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w500,
+              
+              const SizedBox(width: 8),
+              
+              // Checkmark for completed items or lock icon
+              if (isLocked)
+                Icon(
+                  Icons.lock,
+                  color: Colors.grey.shade400,
+                  size: 20,
+                )
+              else if (item.isCompleted)
+                const Icon(
+                  Icons.check_circle,
+                  color: Color(0xFF34C759),
+                  size: 20,
+                )
+              else
+                Icon(
+                  Icons.radio_button_unchecked,
+                  color: Colors.grey.shade400,
+                  size: 20,
                 ),
-              ),
-            ),
-            
-            // Duration
-            Text(
-              item.duration,
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-            
-            const SizedBox(width: 8),
-            
-            // Checkmark for completed items
-            if (item.isCompleted)
-              const Icon(
-                Icons.check_circle,
-                color: Color(0xFF34C759),
-                size: 20,
-              )
-            else
-              Icon(
-                Icons.radio_button_unchecked,
-                color: Colors.grey.shade400,
-                size: 20,
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:lentera_karir/styles/styles.dart';
+import 'package:lentera_karir/widgets/universal/adaptive_image.dart';
 
 /// Card untuk menampilkan progress belajar user dengan thumbnail, title, dan progress bar
 /// Design sesuai progress_card.svg: 349x151px dengan background #F5F5F5
 class ProgressCard extends StatelessWidget {
-  final String thumbnailPath;
+  final String? thumbnailPath;
   final String title;
   final String subtitle;
   final int progressPercent;
@@ -12,7 +13,7 @@ class ProgressCard extends StatelessWidget {
 
   const ProgressCard({
     super.key,
-    required this.thumbnailPath,
+    this.thumbnailPath,
     required this.title,
     required this.subtitle,
     required this.progressPercent,
@@ -37,29 +38,13 @@ class ProgressCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Thumbnail: 125x74px dengan radius 20px
-            ClipRRect(
+            AdaptiveImage(
+              imagePath: thumbnailPath,
+              fallbackAsset: FallbackAssets.sampleImage,
+              width: 125,
+              height: 74,
+              fit: BoxFit.cover,
               borderRadius: BorderRadius.circular(20),
-              child: Image.asset(
-                thumbnailPath,
-                width: 125,
-                height: 74,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) {
-                  return Container(
-                    width: 125,
-                    height: 74,
-                    decoration: BoxDecoration(
-                      color: AppColors.patternOverlay,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Icon(
-                      Icons.image,
-                      size: 32,
-                      color: AppColors.textSecondary,
-                    ),
-                  );
-                },
-              ),
             ),
             const SizedBox(width: 15),
             

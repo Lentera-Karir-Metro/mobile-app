@@ -1,11 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:lentera_karir/styles/styles.dart';
 import 'package:lentera_karir/widgets/universal/buttons/back_button.dart';
 import 'package:lentera_karir/widgets/kelas/preview_mulai_kelas.dart';
 import 'package:lentera_karir/widgets/kelas/sertif_status.dart';
+import 'package:lentera_karir/widgets/universal/adaptive_image.dart';
+import 'package:lentera_karir/providers/course_provider.dart';
+import 'package:lentera_karir/providers/certificate_provider.dart';
+import 'package:lentera_karir/data/models/module_model.dart';
+import 'package:lentera_karir/data/models/course_model.dart';
 
 /// Tab filter untuk konten kelas
 enum ContentTab { overview, ebook, sertifikat }
@@ -24,11 +32,12 @@ class MulaiKelasScreen extends StatefulWidget {
 }
 
 class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
-  late VideoPlayerController _videoController;
+  VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
   bool _isPlaying = false;
   bool _isFullScreen = false;
   bool _showControls = true;
+  bool _hasVideoCompleted = false; // Flag to prevent multiple completion calls
   ContentTab _selectedTab = ContentTab.overview;
   
   // Video quality options
@@ -38,64 +47,247 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
   // Playback speed
   double _playbackSpeed = 1.0;
   final List<double> _speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
-
-  // TODO: Replace with actual API data
-  final String thumbnailPath = "assets/hardcode/sample_image.png";
-  final String videoPath = "assets/hardcode/sample_video.mp4";
-  final String courseTitle = "Bootcamp: Kick-start Karier Digital";
-  final String releaseDate = "March 2025";
-  final String lastUpdated = "August 2025";
-  final int totalVideos = 7;
-  final int completedVideos = 0;
   
-  // Current video index
-  int _currentVideoIndex = 0;
+  // Current video/module index
+  int _currentModuleIndex = 0;
+  ModuleModel? _currentModule;
   
   // Sertifikat status
-  final SertifikatStatus _sertifikatStatus = SertifikatStatus.notReady;
-
-  // Data ebook dummy
-  final List<Map<String, dynamic>> ebookList = [
-    {'title': 'Modul 1: Pengenalan Digital Marketing', 'pages': 45},
-    {'title': 'Modul 2: SEO Fundamental', 'pages': 62},
-    {'title': 'Modul 3: Social Media Marketing', 'pages': 38},
-    {'title': 'Modul 4: Content Marketing Strategy', 'pages': 51},
-    {'title': 'Modul 5: Google Analytics', 'pages': 44},
-  ];
+  SertifikatStatus _sertifikatStatus = SertifikatStatus.notReady;
+  String? _certificateUrl; // URL of generated certificate
+  bool _isGeneratingCertificate = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeVideo();
+    // Use addPostFrameCallback to avoid calling notifyListeners during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadCourseContent();
+    });
   }
 
-  Future<void> _initializeVideo() async {
-    _videoController = VideoPlayerController.asset(videoPath);
+  Future<void> _loadCourseContent() async {
+    if (!mounted) return;
+    final provider = context.read<CourseProvider>();
+    await provider.loadCourseContent(widget.courseId);
+    
+    if (!mounted) return;
+    
+    // Initialize first video after course loads
+    if (provider.currentCourse != null && provider.currentCourse!.modules.isNotEmpty) {
+      // Find first video module
+      final videoModules = provider.currentCourse!.videoModules;
+      debugPrint('[MulaiKelas] All modules: ${provider.currentCourse!.modules.map((m) => 'id=${m.id}, title=${m.title}, type=${m.type}').toList()}');
+      debugPrint('[MulaiKelas] Video modules: ${videoModules.map((m) => 'id=${m.id}, title=${m.title}').toList()}');
+      if (videoModules.isNotEmpty) {
+        _currentModule = videoModules.first;
+        _currentModuleIndex = 0;
+        debugPrint('[MulaiKelas] Set _currentModule: id=${_currentModule!.id}, title=${_currentModule!.title}');
+        await _initializeVideo(_currentModule!.videoUrl);
+      }
+      
+      if (!mounted) return;
+      
+      // Check certificate status from API
+      await _checkCertificateStatus();
+    }
+  }
+
+  Future<void> _checkCertificateStatus() async {
+    if (!mounted) return;
     
     try {
-      await _videoController.initialize();
-      _videoController.addListener(_videoListener);
+      final certProvider = context.read<CertificateProvider>();
+      await certProvider.getCertificateStatus(widget.courseId);
+      
+      if (!mounted) return;
+      
+      final certStatus = certProvider.certificateStatus;
+      
+      // Check if certificate exists using the updated model that handles backend response
+      if (certStatus != null && certStatus.hasCertificate) {
+        // Certificate already exists - use certificateUrl directly from status or from certificate model
+        final url = certStatus.certificateUrl ?? certStatus.certificate?.certificateUrl;
+        setState(() {
+          _sertifikatStatus = SertifikatStatus.claimed;
+          _certificateUrl = url;
+        });
+      } else {
+        // Check if all modules completed for certificate eligibility
+        final courseProvider = context.read<CourseProvider>();
+        final course = courseProvider.currentCourse;
+        if (course != null) {
+          final allCompleted = course.completedModulesCount == course.modules.length && course.modules.isNotEmpty;
+          setState(() {
+            _sertifikatStatus = allCompleted 
+                ? SertifikatStatus.canClaim 
+                : SertifikatStatus.notReady;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking certificate status: $e');
+      // Fallback to module completion check
+      final courseProvider = context.read<CourseProvider>();
+      final course = courseProvider.currentCourse;
+      if (course != null && mounted) {
+        final allCompleted = course.completedModulesCount == course.modules.length && course.modules.isNotEmpty;
+        setState(() {
+          _sertifikatStatus = allCompleted 
+              ? SertifikatStatus.canClaim 
+              : SertifikatStatus.notReady;
+        });
+      }
+    }
+  }
+
+  Future<void> _initializeVideo(String? videoUrl) async {
+    // Use fallback video if no URL provided
+    final effectiveUrl = (videoUrl == null || videoUrl.isEmpty) 
+        ? FallbackAssets.sampleVideo 
+        : videoUrl;
+    
+    // Dispose previous controller if exists
+    if (_videoController != null) {
+      _videoController!.removeListener(_videoListener);
+      await _videoController!.dispose();
+      _videoController = null;
+    }
+    
+    // Reset video initialized state and completion flag before loading new video
+    if (mounted) {
       setState(() {
-        _isVideoInitialized = true;
+        _isVideoInitialized = false;
+        _hasVideoCompleted = false;
       });
+    }
+    
+    // Initialize with network video or asset with video options for better performance
+    if (effectiveUrl.startsWith('http')) {
+      _videoController = VideoPlayerController.networkUrl(
+        Uri.parse(effectiveUrl),
+        videoPlayerOptions: VideoPlayerOptions(
+          mixWithOthers: false, // Pause other audio
+          allowBackgroundPlayback: false,
+        ),
+      );
+    } else {
+      _videoController = VideoPlayerController.asset(effectiveUrl);
+    }
+    
+    try {
+      await _videoController!.initialize();
+      // Set default playback speed
+      await _videoController!.setPlaybackSpeed(_playbackSpeed);
+      _videoController!.addListener(_videoListener);
+      if (mounted) {
+        setState(() {
+          _isVideoInitialized = true;
+        });
+      }
     } catch (e) {
       debugPrint('Error initializing video: $e');
+      // Try fallback if network video fails
+      if (effectiveUrl.startsWith('http')) {
+        _videoController = VideoPlayerController.asset(FallbackAssets.sampleVideo);
+        try {
+          await _videoController!.initialize();
+          _videoController!.addListener(_videoListener);
+          if (mounted) {
+            setState(() {
+              _isVideoInitialized = true;
+            });
+          }
+        } catch (e2) {
+          debugPrint('Error loading fallback video: $e2');
+        }
+      }
     }
   }
 
   void _videoListener() {
-    if (_videoController.value.isPlaying != _isPlaying) {
+    if (_videoController == null) return;
+    if (_videoController!.value.isPlaying != _isPlaying) {
       setState(() {
-        _isPlaying = _videoController.value.isPlaying;
+        _isPlaying = _videoController!.value.isPlaying;
       });
     }
+    
+    final value = _videoController!.value;
+    final duration = value.duration;
+    final position = value.position;
+    
+    // Check if video completed (only trigger once per video)
+    // Use threshold of 1 second before end OR video has finished (position >= duration)
+    // Also check that video is not playing to avoid false positives during seek
+    if (!_hasVideoCompleted && 
+        duration > Duration.zero &&
+        !value.isPlaying &&
+        (position >= duration || 
+         (duration - position) < const Duration(seconds: 1))) {
+      _hasVideoCompleted = true;
+      debugPrint('Video completed: position=$position, duration=$duration');
+      _onVideoCompleted();
+    }
+  }
+  
+  Future<void> _onVideoCompleted() async {
+    debugPrint('[MulaiKelas] _onVideoCompleted called');
+    debugPrint('[MulaiKelas] _currentModule: ${_currentModule != null ? 'id=${_currentModule!.id}, title=${_currentModule!.title}' : 'NULL'}');
+    
+    if (_currentModule == null) {
+      debugPrint('[MulaiKelas] _currentModule is null, returning');
+      return;
+    }
+    
+    // Skip if module is already completed
+    if (_currentModule!.isCompleted) {
+      debugPrint('[MulaiKelas] Module already completed, advancing to next');
+      // Just auto-advance to next video
+      _nextVideo();
+      return;
+    }
+    
+    debugPrint('[MulaiKelas] Marking module ${_currentModule!.id} as complete...');
+    
+    // Mark module as complete
+    final provider = context.read<CourseProvider>();
+    final success = await provider.completeModule(_currentModule!.id);
+    
+    if (success && mounted) {
+      // Show success snackbar
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text('Video "${_currentModule!.title}" telah diselesaikan'),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.successGreen,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      
+      // Update certificate status after module completion
+      await _checkCertificateStatus();
+      
+      // Refresh course data to update UI
+      provider.loadCourseContent(widget.courseId);
+    }
+    
+    // Auto-advance to next video
+    _nextVideo();
   }
 
   @override
   void dispose() {
     // Pause video before disposing
-    if (_videoController.value.isPlaying) {
-      _videoController.pause();
+    if (_videoController != null && _videoController!.value.isPlaying) {
+      _videoController!.pause();
     }
     
     // Reset system UI settings
@@ -108,51 +300,68 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
     ]);
     
     // Remove listener and dispose controller
-    _videoController.removeListener(_videoListener);
-    _videoController.dispose();
+    if (_videoController != null) {
+      _videoController!.removeListener(_videoListener);
+      _videoController!.dispose();
+    }
     super.dispose();
   }
 
   void _togglePlayPause() {
+    if (_videoController == null) return;
     setState(() {
-      if (_videoController.value.isPlaying) {
-        _videoController.pause();
+      if (_videoController!.value.isPlaying) {
+        _videoController!.pause();
       } else {
-        _videoController.play();
+        _videoController!.play();
       }
     });
   }
 
   void _seekForward() {
-    final currentPosition = _videoController.value.position;
-    final duration = _videoController.value.duration;
+    if (_videoController == null) return;
+    final currentPosition = _videoController!.value.position;
+    final duration = _videoController!.value.duration;
     final newPosition = currentPosition + const Duration(seconds: 10);
-    _videoController.seekTo(newPosition > duration ? duration : newPosition);
+    _videoController!.seekTo(newPosition > duration ? duration : newPosition);
   }
 
   void _seekBackward() {
-    final currentPosition = _videoController.value.position;
+    if (_videoController == null) return;
+    final currentPosition = _videoController!.value.position;
     final newPosition = currentPosition - const Duration(seconds: 10);
-    _videoController.seekTo(newPosition < Duration.zero ? Duration.zero : newPosition);
+    _videoController!.seekTo(newPosition < Duration.zero ? Duration.zero : newPosition);
   }
 
   void _nextVideo() {
-    if (_currentVideoIndex < totalVideos - 1) {
+    final provider = context.read<CourseProvider>();
+    final course = provider.currentCourse;
+    if (course == null) return;
+    
+    final videoModules = course.videoModules;
+    if (_currentModuleIndex < videoModules.length - 1) {
       setState(() {
-        _currentVideoIndex++;
+        _currentModuleIndex++;
+        _currentModule = videoModules[_currentModuleIndex];
+        _isVideoInitialized = false;
       });
-      // TODO: Load next video
-      debugPrint('Next video: ${_currentVideoIndex + 1}');
+      _initializeVideo(_currentModule!.videoUrl);
     }
   }
 
   void _previousVideo() {
-    if (_currentVideoIndex > 0) {
+    final provider = context.read<CourseProvider>();
+    final course = provider.currentCourse;
+    if (course == null) return;
+    
+    final videoModules = course.videoModules;
+    if (_currentModuleIndex > 0) {
       setState(() {
-        _currentVideoIndex--;
+        _currentModuleIndex--;
+        _currentModule = videoModules[_currentModuleIndex];
+        _isVideoInitialized = false;
       });
-      // TODO: Load previous video
-      debugPrint('Previous video: ${_currentVideoIndex + 1}');
+      _initializeVideo(_currentModule!.videoUrl);
     }
   }
 
@@ -178,8 +387,8 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
   /// Handle back navigation dengan cleanup yang proper
   void _handleBackNavigation() {
     // Pause video jika sedang playing
-    if (_videoController.value.isPlaying) {
-      _videoController.pause();
+    if (_videoController != null && _videoController!.value.isPlaying) {
+      _videoController!.pause();
     }
     
     // Reset fullscreen jika sedang fullscreen
@@ -199,10 +408,11 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
   }
 
   void _setPlaybackSpeed(double speed) {
+    if (_videoController == null) return;
     setState(() {
       _playbackSpeed = speed;
     });
-    _videoController.setPlaybackSpeed(speed);
+    _videoController!.setPlaybackSpeed(speed);
   }
 
   String _formatDuration(Duration duration) {
@@ -214,90 +424,241 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_isFullScreen) {
-      return PopScope(
-        canPop: false,
-        onPopInvokedWithResult: (didPop, result) async {
-          if (!didPop) {
-            _handleBackNavigation();
-          }
-        },
-        child: Scaffold(
-          backgroundColor: Colors.black,
-          body: _buildVideoPlayer(isFullScreen: true),
-        ),
-      );
-    }
-
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (!didPop) {
-          _handleBackNavigation();
+    return Consumer<CourseProvider>(
+      builder: (context, provider, child) {
+        final course = provider.currentCourse;
+        final isLoading = provider.isLoading;
+        
+        if (isLoading && course == null) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor,
+            body: const Center(child: CircularProgressIndicator()),
+          );
         }
-      },
-      child: Scaffold(
-        backgroundColor: AppColors.backgroundColor,
-        body: Stack(
-          children: [
-            // Main scrollable content
-            SingleChildScrollView(
-            physics: const ClampingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header Banner (seperti detail_kelas.dart)
-                _buildHeader(),
-
-                // Video Player Section
-                _buildVideoPlayer(),
-
-                // Content Card dengan Tab Filter
-                _buildContentCard(),
-
-                // Space untuk bottom sheet preview
-                const SizedBox(height: 200),
-              ],
-            ),
-          ),
-
-          // Preview Widget - Bottom Sheet
-          PreviewMulaiKelasWidget(
-            totalVideos: totalVideos,
-            completedVideos: completedVideos,
-            onItemTap: (item) {
-              debugPrint('Play video: ${item.title}');
-            },
-            onQuizTap: (item) {
-              context.push('/quiz/${item.id}');
-            },
-          ),
-
-          // Back Button - Fixed di atas (sama seperti detail_kelas.dart)
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: CustomBackButton(
-                backgroundColor: AppColors.cardBackground,
-                iconColor: AppColors.textPrimary,
-                onPressed: _handleBackNavigation,
+        
+        if (course == null) {
+          return Scaffold(
+            backgroundColor: AppColors.backgroundColor,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('Gagal memuat kelas'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _loadCourseContent,
+                    child: const Text('Coba Lagi'),
+                  ),
+                ],
               ),
             ),
+          );
+        }
+        
+        // Calculate totals from modules
+        final totalVideos = course.videoModules.length;
+        final completedVideos = course.videoModules.where((m) => m.isCompleted).length;
+
+        if (_isFullScreen) {
+          return PopScope(
+            canPop: false,
+            onPopInvokedWithResult: (didPop, result) async {
+              if (!didPop) {
+                _handleBackNavigation();
+              }
+            },
+            child: Scaffold(
+              backgroundColor: Colors.black,
+              body: _buildVideoPlayer(isFullScreen: true),
+            ),
+          );
+        }
+
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) async {
+            if (!didPop) {
+              _handleBackNavigation();
+            }
+          },
+          child: Scaffold(
+            backgroundColor: AppColors.backgroundColor,
+            body: Stack(
+              children: [
+                // Main scrollable content
+                SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header Banner
+                    _buildHeader(course.title, course.createdAt, course.updatedAt),
+
+                    // Video Player Section
+                    _buildVideoPlayer(),
+
+                    // Content Card dengan Tab Filter
+                    _buildContentCard(course),
+
+                    // Space untuk bottom sheet preview
+                    const SizedBox(height: 200),
+                  ],
+                ),
+              ),
+
+              // Preview Widget - Bottom Sheet
+              PreviewMulaiKelasWidget(
+                totalVideos: totalVideos,
+                completedVideos: completedVideos,
+                modules: course.modules, // Pass dynamic modules
+                onItemTap: (item) {
+                  // Find module and play it
+                  final moduleIndex = course.videoModules.indexWhere((m) => m.id == item.id);
+                  if (moduleIndex >= 0) {
+                    setState(() {
+                      _currentModuleIndex = moduleIndex;
+                      _currentModule = course.videoModules[moduleIndex];
+                      _isVideoInitialized = false;
+                    });
+                    _initializeVideo(_currentModule!.videoUrl);
+                  }
+                },
+                onQuizTap: (item) {
+                  // Use quizId for quiz navigation, not module id
+                  final quizId = item.quizId;
+                  if (quizId != null && quizId.isNotEmpty && quizId != '0') {
+                    context.push('/quiz/$quizId');
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Quiz tidak tersedia')),
+                    );
+                  }
+                },
+                onEbookTap: (item) async {
+                  // Mark module as complete then show dialog (like web implementation)
+                  if (item.ebookUrl == null || item.ebookUrl!.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Ebook tidak tersedia')),
+                    );
+                    return;
+                  }
+                  
+                  final courseProvider = Provider.of<CourseProvider>(context, listen: false);
+                  final success = await courseProvider.completeModule(item.id);
+                  
+                  if (!mounted) return;
+                  
+                  if (success) {
+                    // Show success dialog
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: AppColors.successGreen.withAlpha(26),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(
+                                Icons.download_done_rounded,
+                                color: AppColors.successGreen,
+                                size: 32,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Ebook Berhasil Diunduh!',
+                              style: AppTextStyles.subtitle1.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'Ebook "${item.title}" telah ditambahkan ke koleksi Ebook Saya.',
+                              style: AppTextStyles.body2.copyWith(
+                                color: AppColors.textSecondary,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Tutup'),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(ctx).pop();
+                              context.push('/ebook/view', extra: {
+                                'title': item.title,
+                                'url': item.ebookUrl,
+                              });
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryPurple,
+                            ),
+                            child: const Text('Buka Ebook'),
+                          ),
+                        ],
+                      ),
+                    );
+                    
+                    // Refresh course data
+                    courseProvider.loadCourseContent(widget.courseId);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Gagal mengunduh ebook'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                },
+              ),
+
+              // Back Button
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: CustomBackButton(
+                    backgroundColor: AppColors.cardBackground,
+                    iconColor: AppColors.textPrimary,
+                    onPressed: _handleBackNavigation,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
-      ),
+          ),
+        );
+      },
     );
   }
 
-  /// Header Banner dengan title dan info (sama seperti detail_kelas.dart)
-  Widget _buildHeader() {
+  /// Header Banner dengan title dan info
+  Widget _buildHeader(String courseTitle, DateTime? createdAt, DateTime? updatedAt) {
+    final releasedDate = createdAt != null
+        ? '${createdAt.day} ${_monthName(createdAt.month)} ${createdAt.year}'
+        : 'N/A';
+    final lastUpdated = updatedAt != null
+        ? '${updatedAt.day} ${_monthName(updatedAt.month)} ${updatedAt.year}'
+        : 'N/A';
+        
     return SizedBox(
       width: double.infinity,
-      height: 260,
+      height: 280, // Increased height for new layout
       child: Stack(
         children: [
-          // Background banner image - full cover with rounded corners
+          // Background banner image
           Positioned.fill(
             child: ClipRRect(
               borderRadius: const BorderRadius.only(
@@ -311,7 +672,7 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
             ),
           ),
           
-          // Content di bagian bawah banner
+          // Content di bagian bawah banner (title below back button area)
           Positioned(
             left: 20,
             right: 20,
@@ -329,19 +690,46 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                     height: 1.2,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 
-                // Released date row
+                // Released date row (separate line)
                 Row(
                   children: [
-                    const Icon(
-                      Icons.public_rounded,
-                      size: 18,
-                      color: Colors.white,
+                    SvgPicture.asset(
+                      'assets/kelas/globe.svg',
+                      width: 16,
+                      height: 16,
+                      colorFilter: const ColorFilter.mode(
+                        Colors.white,
+                        BlendMode.srcIn,
+                      ),
                     ),
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 6),
                     Text(
-                      'Released date $releaseDate',
+                      'Released Date $releasedDate',
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                
+                // Updated date row (separate line)
+                Row(
+                  children: [
+                    SvgPicture.asset(
+                      'assets/kelas/last_update.svg',
+                      width: 16,
+                      height: 16,
+                      colorFilter: const ColorFilter.mode(
+                        Colors.white,
+                        BlendMode.srcIn,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Last Updated $lastUpdated',
                       style: AppTextStyles.caption.copyWith(
                         color: Colors.white,
                       ),
@@ -350,23 +738,28 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                 ),
                 const SizedBox(height: 8),
                 
-                // Last updated row
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.update_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Last updated $lastUpdated',
-                      style: AppTextStyles.caption.copyWith(
+                // Current module info
+                if (_currentModule != null)
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.play_circle_outline,
+                        size: 18,
                         color: Colors.white,
                       ),
-                    ),
-                  ],
-                ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _currentModule!.title,
+                          style: AppTextStyles.caption.copyWith(
+                            color: Colors.white,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -377,6 +770,21 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
 
   /// Video Player Section dengan controls lengkap
   Widget _buildVideoPlayer({bool isFullScreen = false}) {
+    if (_videoController == null || !_isVideoInitialized) {
+      return Container(
+        width: double.infinity,
+        height: isFullScreen ? MediaQuery.of(context).size.height : 220.0,
+        margin: isFullScreen ? EdgeInsets.zero : const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: isFullScreen ? null : BorderRadius.circular(16),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(color: Colors.white),
+        ),
+      );
+    }
+    
     final playerHeight = isFullScreen 
         ? MediaQuery.of(context).size.height 
         : 220.0;
@@ -391,8 +799,7 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
       ),
       child: ClipRRect(
         borderRadius: isFullScreen ? BorderRadius.zero : BorderRadius.circular(16),
-        child: _isVideoInitialized
-            ? GestureDetector(
+        child: GestureDetector(
                 onTap: () {
                   setState(() {
                     _showControls = !_showControls;
@@ -403,8 +810,8 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                   children: [
                     // Video Player
                     AspectRatio(
-                      aspectRatio: _videoController.value.aspectRatio,
-                      child: VideoPlayer(_videoController),
+                      aspectRatio: _videoController!.value.aspectRatio,
+                      child: VideoPlayer(_videoController!),
                     ),
 
                     // Controls Overlay
@@ -494,7 +901,7 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                           children: [
                             // Progress bar
                             VideoProgressIndicator(
-                              _videoController,
+                              _videoController!,
                               allowScrubbing: true,
                               colors: const VideoProgressColors(
                                 playedColor: AppColors.primaryPurple,
@@ -529,10 +936,10 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                                   ),
                                   // Duration display
                                   ValueListenableBuilder(
-                                    valueListenable: _videoController,
+                                    valueListenable: _videoController!,
                                     builder: (context, value, child) {
-                                      final position = _formatDuration(value.position);
-                                      final duration = _formatDuration(value.duration);
+                                      final position = _formatDuration(_videoController!.value.position);
+                                      final duration = _formatDuration(_videoController!.value.duration);
                                       return Text(
                                         '$position / $duration',
                                         style: AppTextStyles.caption.copyWith(
@@ -567,32 +974,6 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                         ),
                       ),
                     ],
-                  ],
-                ),
-              )
-            : Center(
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    Image.asset(
-                      thumbnailPath,
-                      width: double.infinity,
-                      height: playerHeight,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) {
-                        return Container(
-                          color: Colors.grey[800],
-                          child: const Icon(
-                            Icons.video_library_rounded,
-                            color: Colors.white54,
-                            size: 48,
-                          ),
-                        );
-                      },
-                    ),
-                    const CircularProgressIndicator(
-                      color: AppColors.primaryPurple,
-                    ),
                   ],
                 ),
               ),
@@ -671,7 +1052,7 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
   }
 
   /// Content Card dengan Tab Filter dan Shadow
-  Widget _buildContentCard() {
+  Widget _buildContentCard(CourseModel course) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
@@ -705,7 +1086,7 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
           // Tab Content
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: _buildTabContent(),
+            child: _buildTabContent(course),
           ),
         ],
       ),
@@ -741,20 +1122,20 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
     );
   }
 
-  Widget _buildTabContent() {
+  Widget _buildTabContent(CourseModel course) {
     switch (_selectedTab) {
       case ContentTab.overview:
-        return _buildOverviewContent();
+        return _buildOverviewContent(course);
       case ContentTab.ebook:
-        return _buildEbookContent();
+        return _buildEbookContent(course);
       case ContentTab.sertifikat:
         return _buildSertifikatContent();
     }
   }
 
-  Widget _buildOverviewContent() {
+  Widget _buildOverviewContent(CourseModel course) {
     return Text(
-      'Program pelatihan intensif yang dirancang khusus untuk memfasilitasi individu, baik fresh graduate maupun profesional yang berkeinginan melakukan career pivot, untuk memasuki industri digital dengan bekal pengetahuan dan keterampilan yang relevan.\n\nKurikulum program ini disusun berdasarkan kebutuhan pasar kerja saat ini, berfokus pada tiga pilar utama: penguasaan mindset digital, implementasi keterampilan teknis dasar (seperti SEO, copywriting, dan analisis data sederhana), serta strategi profesional dalam pengembangan personal branding dan portofolio.\n\nPeserta akan dibimbing untuk memahami lanskap industri digital, mengidentifikasi peran kunci yang sesuai dengan minat dan kompetensi, serta membangun aset profesional (portofolio) yang memenuhi standar industri.\n\nTujuan Utama: Menghasilkan lulusan yang siap kerja (job-ready) dan mampu memberikan kontribusi signifikan dalam lingkungan kerja digital yang dinamis dan kompetitif.',
+      course.description ?? 'Deskripsi belum tersedia.',
       style: AppTextStyles.body2.copyWith(
         color: AppColors.textSecondary,
         height: 1.5,
@@ -763,22 +1144,146 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
     );
   }
 
-  Widget _buildEbookContent() {
+  Widget _buildEbookContent(CourseModel course) {
+    final ebookModules = course.ebookModules;
+    
+    if (ebookModules.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text(
+            'Tidak ada ebook tersedia',
+            style: AppTextStyles.body2.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+      );
+    }
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: ebookList.map((ebook) => _buildEbookItem(
-        title: ebook['title'],
-        pages: ebook['pages'],
+      children: ebookModules.map((module) => _buildEbookItem(
+        moduleId: module.id,
+        title: module.title,
+        ebookUrl: module.ebookUrl,
+        isCompleted: module.isCompleted,
       )).toList(),
     );
   }
 
-  Widget _buildEbookItem({required String title, required int pages}) {
+  Widget _buildEbookItem({
+    required String moduleId,
+    required String title,
+    String? ebookUrl,
+    bool isCompleted = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: InkWell(
-        onTap: () {
-          debugPrint('Open ebook: $title');
+        onTap: () async {
+          if (ebookUrl == null || ebookUrl.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Ebook tidak tersedia')),
+            );
+            return;
+          }
+          
+          // Mark module as complete (like web implementation)
+          final courseProvider = Provider.of<CourseProvider>(context, listen: false);
+          final success = await courseProvider.completeModule(moduleId);
+          
+          if (!mounted) return;
+          
+          if (success) {
+            // Show success dialog like web implementation
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 60,
+                      height: 60,
+                      decoration: BoxDecoration(
+                        color: AppColors.successGreen.withAlpha(26),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.download_done_rounded,
+                        color: AppColors.successGreen,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Ebook Berhasil Diunduh!',
+                      style: AppTextStyles.subtitle1.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Ebook "$title" telah ditambahkan ke koleksi Ebook Saya.',
+                      style: AppTextStyles.body2.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+                actionsAlignment: MainAxisAlignment.center,
+                actions: [
+                  OutlinedButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primaryPurple,
+                      side: const BorderSide(color: AppColors.primaryPurple),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: const Text('Tutup'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(ctx).pop();
+                      // Navigate to view the ebook
+                      context.push('/ebook/view', extra: {
+                        'title': title,
+                        'url': ebookUrl,
+                      });
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryPurple,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: const Text('Buka Ebook'),
+                  ),
+                ],
+              ),
+            );
+            
+            // Refresh course data to update completion status
+            courseProvider.loadCourseContent(widget.courseId);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Gagal mengunduh ebook'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         },
         borderRadius: BorderRadius.circular(12),
         child: Container(
@@ -786,6 +1291,10 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
           decoration: BoxDecoration(
             color: AppColors.backgroundColor,
             borderRadius: BorderRadius.circular(12),
+            border: isCompleted ? Border.all(
+              color: AppColors.successGreen.withAlpha(100),
+              width: 1,
+            ) : null,
           ),
           child: Row(
             children: [
@@ -793,12 +1302,16 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: Colors.red.withAlpha(26),
+                  color: isCompleted 
+                      ? AppColors.successGreen.withAlpha(26)
+                      : Colors.red.withAlpha(26),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.picture_as_pdf_rounded,
-                  color: Colors.red,
+                child: Icon(
+                  isCompleted 
+                      ? Icons.download_done_rounded
+                      : Icons.picture_as_pdf_rounded,
+                  color: isCompleted ? AppColors.successGreen : Colors.red,
                   size: 24,
                 ),
               ),
@@ -817,17 +1330,19 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '$pages halaman',
+                      isCompleted ? 'Sudah diunduh' : 'Tap untuk mengunduh',
                       style: AppTextStyles.caption.copyWith(
-                        color: AppColors.textSecondary,
+                        color: isCompleted 
+                            ? AppColors.successGreen
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
-                Icons.download_rounded,
-                color: AppColors.primaryPurple,
+              Icon(
+                isCompleted ? Icons.check_circle : Icons.download_rounded,
+                color: isCompleted ? AppColors.successGreen : AppColors.primaryPurple,
                 size: 24,
               ),
             ],
@@ -838,13 +1353,171 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
   }
 
   Widget _buildSertifikatContent() {
-    return SertifStatus(
-      status: _sertifikatStatus,
-      onTap: () {
-        if (_sertifikatStatus == SertifikatStatus.canClaim) {
-          debugPrint('Download sertifikat');
-        }
-      },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SertifStatus(
+          status: _sertifikatStatus,
+          onTap: _isGeneratingCertificate ? null : () => _handleCertificateAction(),
+        ),
+        if (_isGeneratingCertificate)
+          const Padding(
+            padding: EdgeInsets.only(top: 16),
+            child: Center(
+              child: Column(
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 8),
+                  Text('Membuat sertifikat...'),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
+  }
+
+  Future<void> _handleCertificateAction() async {
+    if (_sertifikatStatus == SertifikatStatus.claimed && _certificateUrl != null) {
+      // Open existing certificate directly in browser/PDF reader
+      await _openPdfUrl(_certificateUrl!);
+    } else if (_sertifikatStatus == SertifikatStatus.canClaim) {
+      // Generate certificate
+      await _generateCertificate();
+    }
+    // Do nothing if notReady (disabled state)
+  }
+
+  Future<void> _openPdfUrl(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Tidak dapat membuka file')),
+        );
+      }
+    }
+  }
+
+  Future<void> _generateCertificate() async {
+    if (_isGeneratingCertificate) return;
+    
+    setState(() {
+      _isGeneratingCertificate = true;
+    });
+    
+    try {
+      final certProvider = context.read<CertificateProvider>();
+      
+      // First, check if certificate already exists
+      await certProvider.getCertificateStatus(widget.courseId);
+      
+      if (certProvider.certificateStatus?.hasCertificate == true && 
+          certProvider.certificateStatus?.certificate != null) {
+        // Certificate already exists, just show it
+        final existingCert = certProvider.certificateStatus!.certificate!;
+        if (mounted) {
+          setState(() {
+            _sertifikatStatus = SertifikatStatus.claimed;
+            _certificateUrl = existingCert.certificateUrl;
+            _isGeneratingCertificate = false;
+          });
+          
+          // Open the existing certificate directly in browser/PDF reader
+          if (_certificateUrl != null && _certificateUrl!.isNotEmpty) {
+            await _openPdfUrl(_certificateUrl!);
+          }
+        }
+        return;
+      }
+      
+      // Load templates first
+      await certProvider.loadTemplates();
+      
+      // Get the first template (or default template)
+      String templateId = '1'; // Default template ID
+      if (certProvider.templates.isNotEmpty) {
+        templateId = certProvider.templates.first.id.toString();
+      }
+      
+      // Generate certificate
+      final certificate = await certProvider.generateCertificate(
+        widget.courseId,
+        templateId,
+      );
+      
+      if (certificate != null && mounted) {
+        setState(() {
+          _sertifikatStatus = SertifikatStatus.claimed;
+          _certificateUrl = certificate.certificateUrl;
+          _isGeneratingCertificate = false;
+        });
+        
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Sertifikat berhasil dibuat!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        
+        // Open the certificate directly in browser/PDF reader
+        if (_certificateUrl != null) {
+          await _openPdfUrl(_certificateUrl!);
+        }
+      } else {
+        // Generate failed, maybe certificate already exists - check status again
+        await certProvider.getCertificateStatus(widget.courseId);
+        
+        if (certProvider.certificateStatus?.hasCertificate == true && 
+            certProvider.certificateStatus?.certificate != null) {
+          final existingCert = certProvider.certificateStatus!.certificate!;
+          if (mounted) {
+            setState(() {
+              _sertifikatStatus = SertifikatStatus.claimed;
+              _certificateUrl = existingCert.certificateUrl;
+              _isGeneratingCertificate = false;
+            });
+            return;
+          }
+        }
+        
+        setState(() {
+          _isGeneratingCertificate = false;
+        });
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(certProvider.errorMessage ?? 'Gagal membuat sertifikat'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error generating certificate: $e');
+      if (mounted) {
+        setState(() {
+          _isGeneratingCertificate = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+  
+  String _monthName(int month) {
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    return months[month - 1];
   }
 }

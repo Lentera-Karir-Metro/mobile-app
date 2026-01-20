@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:lentera_karir/styles/styles.dart';
 import 'package:lentera_karir/widgets/universal/buttons/navbottom.dart';
 import 'package:lentera_karir/widgets/universal/layout/header_banner.dart';
 import 'package:lentera_karir/screens/profile/help_center.dart';
 import 'package:lentera_karir/screens/profile/contact_us.dart';
 import 'package:lentera_karir/screens/profile/setting.dart';
+import 'package:lentera_karir/providers/auth_provider.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -14,90 +17,86 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
-      body: Column(
-        children: [
-          // Header Banner with pattern - menggunakan widget HeaderBanner
-          HeaderBanner(
-            height: 306,
-            child: SafeArea(
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Avatar
-                    Container(
-                      width: 66,
-                      height: 66,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.cardBackground,
-                        image: const DecorationImage(
-                          image: AssetImage('assets/hardcode/sample_image.png'),
-                          fit: BoxFit.cover,
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
+          final user = authProvider.user;
+          
+          return Column(
+            children: [
+              // Header Banner with pattern - menggunakan widget HeaderBanner
+              HeaderBanner(
+                height: 306,
+                child: SafeArea(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Avatar - using same style as home.dart, 2x size (radius 66)
+                        CircleAvatar(
+                          radius: 66,
+                          backgroundColor: AppColors.divider,
+                          backgroundImage: user?.avatar != null 
+                            ? NetworkImage(user!.avatar!)
+                            : null,
+                          child: user?.avatar == null ? const Icon(
+                            Icons.person,
+                            color: AppColors.textSecondary,
+                            size: 80,
+                          ) : null,
                         ),
-                      ),
+                        const SizedBox(height: 12),
+                        // User name
+                        Text(
+                          user?.name ?? 'User',
+                          style: AppTextStyles.heading3.copyWith(
+                            color: AppColors.textOnDark,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                    // User name
-                    Text(
-                      'Ridho Dwi Syahputra',
-                      style: AppTextStyles.heading3.copyWith(
-                        color: AppColors.textOnDark,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Learning status
-                    Text(
-                      'Online Learning Enthusiast',
-                      style: AppTextStyles.body2.copyWith(
-                        color: AppColors.textOnDark,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-            ),
-          ),
-          
-          // White area with menu items
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.only(
-                left: 31,
-                right: 31,
-                top: 34,
-                bottom: 100,
-              ),
-              child: Column(
-                children: [
-                  // Menu items
-                  _buildMenuItem(
-                    icon: 'assets/profile/help_center.svg',
-                    title: 'Help Center',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const HelpCenterScreen(),
-                        ),
-                      );
-                    },
+              
+              // White area with menu items
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(
+                    left: 31,
+                    right: 31,
+                    top: 34,
+                    bottom: 100,
                   ),
-                  const SizedBox(height: 15),
-                  _buildMenuItem(
-                    icon: 'assets/profile/contact_us.svg',
-                    title: 'Contact Us',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ContactUsScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 15),
+                  child: Column(
+                    children: [
+                      // Menu items
+                      _buildMenuItem(
+                        icon: 'assets/profile/help_center.svg',
+                        title: 'Help Center',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const HelpCenterScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 15),
+                      _buildMenuItem(
+                        icon: 'assets/profile/contact_us.svg',
+                        title: 'Contact Us',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const ContactUsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 15),
                   _buildMenuItem(
                     icon: 'assets/profile/setting.svg',
                     title: 'Setting',
@@ -110,23 +109,25 @@ class ProfileScreen extends StatelessWidget {
                       );
                     },
                   ),
-                  const SizedBox(height: 15),
-                  _buildMenuItem(
-                    icon: 'assets/profile/logout.svg',
-                    title: 'Logout',
-                    onTap: () => _showLogoutDialog(context),
+                      const SizedBox(height: 15),
+                      _buildMenuItem(
+                        icon: 'assets/profile/logout.svg',
+                        title: 'Logout',
+                        onTap: () => _showLogoutDialog(context, authProvider),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
       bottomNavigationBar: const NavBottom(currentIndex: 3),
     );
   }
 
-  void _showLogoutDialog(BuildContext context) {
+  void _showLogoutDialog(BuildContext context, AuthProvider authProvider) {
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -171,9 +172,12 @@ class ProfileScreen extends StatelessWidget {
                     // Keluar button
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: () {
-                          // TODO: Implement logout logic
+                        onPressed: () async {
                           Navigator.pop(context);
+                          await authProvider.logout();
+                          if (context.mounted) {
+                            context.go('/login');
+                          }
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFF3B30),

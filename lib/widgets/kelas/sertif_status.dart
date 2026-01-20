@@ -11,6 +11,9 @@ enum SertifikatStatus {
 
   /// Sedang diproses - menunggu konfirmasi
   inProgress,
+
+  /// Sudah diklaim - sertifikat sudah tersedia
+  claimed,
 }
 
 /// Widget untuk menampilkan status sertifikat
@@ -84,7 +87,7 @@ class SertifStatus extends StatelessWidget {
             ),
 
             // Arrow icon for canClaim status
-            if (status == SertifikatStatus.canClaim)
+            if (status == SertifikatStatus.canClaim || status == SertifikatStatus.claimed)
               Icon(
                 Icons.arrow_forward_ios_rounded,
                 color: _getIconColor(),
@@ -104,6 +107,8 @@ class SertifStatus extends StatelessWidget {
         return const Color(0xFF34C759).withAlpha(26);
       case SertifikatStatus.inProgress:
         return const Color(0xFF747474).withAlpha(26);
+      case SertifikatStatus.claimed:
+        return const Color(0xFF007AFF).withAlpha(26); // Blue for claimed
     }
   }
 
@@ -115,6 +120,8 @@ class SertifStatus extends StatelessWidget {
         return const Color(0xFF34C759).withAlpha(38);
       case SertifikatStatus.inProgress:
         return const Color(0xFF747474).withAlpha(38);
+      case SertifikatStatus.claimed:
+        return const Color(0xFF007AFF).withAlpha(38);
     }
   }
 
@@ -126,6 +133,8 @@ class SertifStatus extends StatelessWidget {
         return const Color(0xFF34C759);
       case SertifikatStatus.inProgress:
         return const Color(0xFF747474);
+      case SertifikatStatus.claimed:
+        return const Color(0xFF007AFF);
     }
   }
 
@@ -137,6 +146,8 @@ class SertifStatus extends StatelessWidget {
         return const Color(0xFF34C759);
       case SertifikatStatus.inProgress:
         return const Color(0xFF747474);
+      case SertifikatStatus.claimed:
+        return const Color(0xFF007AFF);
     }
   }
 
@@ -148,6 +159,8 @@ class SertifStatus extends StatelessWidget {
         return const Color(0xFF34C759).withAlpha(179);
       case SertifikatStatus.inProgress:
         return const Color(0xFF747474).withAlpha(179);
+      case SertifikatStatus.claimed:
+        return const Color(0xFF007AFF).withAlpha(179);
     }
   }
 
@@ -159,6 +172,8 @@ class SertifStatus extends StatelessWidget {
         return 'Klaim sertifikat';
       case SertifikatStatus.inProgress:
         return 'Sertifikat sedang diproses';
+      case SertifikatStatus.claimed:
+        return 'Lihat sertifikat';
     }
   }
 
@@ -170,6 +185,8 @@ class SertifStatus extends StatelessWidget {
         return 'Unduh sertifikmu sekarang';
       case SertifikatStatus.inProgress:
         return 'Tunggu konfirmasi dari admin';
+      case SertifikatStatus.claimed:
+        return 'Sertifikat sudah tersedia';
     }
   }
 }
