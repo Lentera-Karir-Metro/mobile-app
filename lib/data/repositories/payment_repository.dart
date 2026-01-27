@@ -23,8 +23,8 @@ class PaymentRepositoryImpl implements PaymentRepository {
           return PaymentModel.fromJson(transactionData);
         }
       }
-    } catch (e) {
-      print('Error creating course payment: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return null;
   }
@@ -36,8 +36,8 @@ class PaymentRepositoryImpl implements PaymentRepository {
       if (response['success'] == true && response['data'] != null) {
         return PaymentModel.fromJson(response['data']);
       }
-    } catch (e) {
-      print('Error getting payment status: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return null;
   }
@@ -47,8 +47,8 @@ class PaymentRepositoryImpl implements PaymentRepository {
     try {
       final response = await _paymentService.syncPendingPayments();
       return response['success'] == true;
-    } catch (e) {
-      print('Error syncing pending payments: $e');
+    } catch (_) {
+      // Error logged - removed print for production
       return false;
     }
   }

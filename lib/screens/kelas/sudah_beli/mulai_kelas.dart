@@ -77,12 +77,9 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
     if (provider.currentCourse != null && provider.currentCourse!.modules.isNotEmpty) {
       // Find first video module
       final videoModules = provider.currentCourse!.videoModules;
-      debugPrint('[MulaiKelas] All modules: ${provider.currentCourse!.modules.map((m) => 'id=${m.id}, title=${m.title}, type=${m.type}').toList()}');
-      debugPrint('[MulaiKelas] Video modules: ${videoModules.map((m) => 'id=${m.id}, title=${m.title}').toList()}');
       if (videoModules.isNotEmpty) {
         _currentModule = videoModules.first;
         _currentModuleIndex = 0;
-        debugPrint('[MulaiKelas] Set _currentModule: id=${_currentModule!.id}, title=${_currentModule!.title}');
         await _initializeVideo(_currentModule!.videoUrl);
       }
       
@@ -125,8 +122,7 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
           });
         }
       }
-    } catch (e) {
-      debugPrint('Error checking certificate status: $e');
+    } catch (_) {
       // Fallback to module completion check
       final courseProvider = context.read<CourseProvider>();
       final course = courseProvider.currentCourse;
@@ -185,8 +181,7 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
           _isVideoInitialized = true;
         });
       }
-    } catch (e) {
-      debugPrint('Error initializing video: $e');
+    } catch (_) {
       // Try fallback if network video fails
       if (effectiveUrl.startsWith('http')) {
         _videoController = VideoPlayerController.asset(FallbackAssets.sampleVideo);
@@ -198,8 +193,8 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
               _isVideoInitialized = true;
             });
           }
-        } catch (e2) {
-          debugPrint('Error loading fallback video: $e2');
+        } catch (_) {
+          // Fallback video also failed
         }
       }
     }
@@ -226,29 +221,21 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
         (position >= duration || 
          (duration - position) < const Duration(seconds: 1))) {
       _hasVideoCompleted = true;
-      debugPrint('Video completed: position=$position, duration=$duration');
       _onVideoCompleted();
     }
   }
   
   Future<void> _onVideoCompleted() async {
-    debugPrint('[MulaiKelas] _onVideoCompleted called');
-    debugPrint('[MulaiKelas] _currentModule: ${_currentModule != null ? 'id=${_currentModule!.id}, title=${_currentModule!.title}' : 'NULL'}');
-    
     if (_currentModule == null) {
-      debugPrint('[MulaiKelas] _currentModule is null, returning');
       return;
     }
     
     // Skip if module is already completed
     if (_currentModule!.isCompleted) {
-      debugPrint('[MulaiKelas] Module already completed, advancing to next');
       // Just auto-advance to next video
       _nextVideo();
       return;
     }
-    
-    debugPrint('[MulaiKelas] Marking module ${_currentModule!.id} as complete...');
     
     // Mark module as complete
     final provider = context.read<CourseProvider>();
@@ -342,22 +329,6 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
     if (_currentModuleIndex < videoModules.length - 1) {
       setState(() {
         _currentModuleIndex++;
-        _currentModule = videoModules[_currentModuleIndex];
-        _isVideoInitialized = false;
-      });
-      _initializeVideo(_currentModule!.videoUrl);
-    }
-  }
-
-  void _previousVideo() {
-    final provider = context.read<CourseProvider>();
-    final course = provider.currentCourse;
-    if (course == null) return;
-    
-    final videoModules = course.videoModules;
-    if (_currentModuleIndex > 0) {
-      setState(() {
-        _currentModuleIndex--;
         _currentModule = videoModules[_currentModuleIndex];
         _isVideoInitialized = false;
       });
@@ -510,7 +481,7 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
               PreviewMulaiKelasWidget(
                 totalVideos: totalVideos,
                 completedVideos: completedVideos,
-                modules: course.modules, // Pass dynamic modules
+                modules: course.modulesWithCorrectedLock, // Use corrected lock status
                 onItemTap: (item) {
                   // Find module and play it
                   final moduleIndex = course.videoModules.indexWhere((m) => m.id == item.id);
@@ -543,6 +514,9 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                     return;
                   }
                   
+                  // Capture context and provider before async gap
+                  final currentContext = context;
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
                   final courseProvider = Provider.of<CourseProvider>(context, listen: false);
                   final success = await courseProvider.completeModule(item.id);
                   
@@ -551,7 +525,8 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                   if (success) {
                     // Show success dialog
                     showDialog(
-                      context: context,
+                      // ignore: use_build_context_synchronously
+                      context: currentContext,
                       builder: (ctx) => AlertDialog(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
@@ -598,7 +573,7 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                           ElevatedButton(
                             onPressed: () {
                               Navigator.of(ctx).pop();
-                              context.push('/ebook/view', extra: {
+                              currentContext.push('/ebook/view', extra: {
                                 'title': item.title,
                                 'url': item.ebookUrl,
                               });
@@ -615,7 +590,7 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                     // Refresh course data
                     courseProvider.loadCourseContent(widget.courseId);
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    scaffoldMessenger.showSnackBar(
                       const SnackBar(
                         content: Text('Gagal mengunduh ebook'),
                         backgroundColor: Colors.red,
@@ -655,7 +630,7 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
         
     return SizedBox(
       width: double.infinity,
-      height: 280, // Increased height for new layout
+      height: 280, // Height for new layout with top positioning
       child: Stack(
         children: [
           // Background banner image
@@ -672,11 +647,11 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
             ),
           ),
           
-          // Content di bagian bawah banner (title below back button area)
+          // Content positioned below back button area with gap (like quiz.dart and detail_kelas.dart)
           Positioned(
             left: 20,
             right: 20,
-            bottom: 20,
+            top: 90, // Position below back button with small gap
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -819,42 +794,17 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                       // Dark overlay
                       Container(color: Colors.black38),
 
-                      // Top Left - Fullscreen button
-                      Positioned(
-                        top: 8,
-                        left: 8,
-                        child: IconButton(
-                          onPressed: _toggleFullScreen,
-                          icon: Icon(
-                            _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
-                            color: Colors.white,
-                            size: 28,
-                          ),
-                        ),
-                      ),
-
-                      // Top Right Controls (Quality, Speed)
+                      // Top Right - Quality selector only
                       Positioned(
                         top: 8,
                         right: 8,
-                        child: Row(
-                          children: [
-                            // Quality selector
-                            _buildControlButton(
-                              label: _selectedQuality,
-                              onTap: _showQualityDialog,
-                            ),
-                            const SizedBox(width: 8),
-                            // Speed selector
-                            _buildControlButton(
-                              label: '${_playbackSpeed}X',
-                              onTap: _showSpeedDialog,
-                            ),
-                          ],
+                        child: _buildControlButton(
+                          label: _selectedQuality,
+                          onTap: _showQualityDialog,
                         ),
                       ),
 
-                      // Center Controls (Previous, Play/Pause, Next)
+                      // Center Controls (Seek backward, Play/Pause, Seek forward)
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -892,7 +842,38 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                         ],
                       ),
 
-                      // Bottom Controls (Progress, Duration, Fullscreen)
+                      // Bottom Left - Speed selector
+                      Positioned(
+                        bottom: 40,
+                        left: 12,
+                        child: _buildControlButton(
+                          label: '${_playbackSpeed}X',
+                          onTap: _showSpeedDialog,
+                        ),
+                      ),
+
+                      // Bottom Right - Fullscreen button
+                      Positioned(
+                        bottom: 40,
+                        right: 12,
+                        child: GestureDetector(
+                          onTap: _toggleFullScreen,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.black54,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Icon(
+                              _isFullScreen ? Icons.fullscreen_exit : Icons.fullscreen,
+                              color: Colors.white,
+                              size: 24,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Bottom Controls (Progress bar and Duration only)
                       Positioned(
                         bottom: 0,
                         left: 0,
@@ -909,65 +890,21 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
                                 backgroundColor: Colors.white10,
                               ),
                             ),
-                            // Duration and controls
+                            // Duration display centered
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  // Previous button
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        onPressed: _previousVideo,
-                                        icon: const Icon(Icons.skip_previous_rounded, 
-                                          color: Colors.white, size: 24),
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Previous',
-                                        style: AppTextStyles.caption.copyWith(
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  // Duration display
-                                  ValueListenableBuilder(
-                                    valueListenable: _videoController!,
-                                    builder: (context, value, child) {
-                                      final position = _formatDuration(_videoController!.value.position);
-                                      final duration = _formatDuration(_videoController!.value.duration);
-                                      return Text(
-                                        '$position / $duration',
-                                        style: AppTextStyles.caption.copyWith(
-                                          color: Colors.white,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                  // Next button
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'Next',
-                                        style: AppTextStyles.caption.copyWith(
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 4),
-                                      IconButton(
-                                        onPressed: _nextVideo,
-                                        icon: const Icon(Icons.skip_next_rounded, 
-                                          color: Colors.white, size: 24),
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                              child: ValueListenableBuilder(
+                                valueListenable: _videoController!,
+                                builder: (context, value, child) {
+                                  final position = _formatDuration(_videoController!.value.position);
+                                  final duration = _formatDuration(_videoController!.value.duration);
+                                  return Text(
+                                    '$position / $duration',
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: Colors.white,
+                                    ),
+                                  );
+                                },
                               ),
                             ),
                           ],
@@ -1095,27 +1032,37 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
 
   Widget _buildTabButton(ContentTab tab, String label) {
     final bool isSelected = _selectedTab == tab;
+    final screenWidth = MediaQuery.of(context).size.width;
+    // Responsive padding - smaller on small screens
+    final hPadding = screenWidth < 360 ? 14.0 : (screenWidth < 400 ? 16.0 : 20.0);
+    final vPadding = screenWidth < 360 ? 8.0 : 10.0;
+    final fontSize = screenWidth < 360 ? 12.0 : 14.0;
     
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          _selectedTab = tab;
-        });
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryPurple : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          border: isSelected
-              ? null
-              : Border.all(color: AppColors.textSecondary, width: 1),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyles.body2.copyWith(
-            color: isSelected ? Colors.white : AppColors.textSecondary,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+    return Flexible(
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedTab = tab;
+          });
+        },
+        child: Container(
+          padding: EdgeInsets.symmetric(horizontal: hPadding, vertical: vPadding),
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.primaryPurple : Colors.transparent,
+            borderRadius: BorderRadius.circular(20),
+            border: isSelected
+                ? null
+                : Border.all(color: AppColors.textSecondary, width: 1),
+          ),
+          child: Text(
+            label,
+            style: AppTextStyles.body2.copyWith(
+              fontSize: fontSize,
+              color: isSelected ? Colors.white : AppColors.textSecondary,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            ),
+            textAlign: TextAlign.center,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),
@@ -1498,7 +1445,6 @@ class _MulaiKelasScreenState extends State<MulaiKelasScreen> {
         }
       }
     } catch (e) {
-      debugPrint('Error generating certificate: $e');
       if (mounted) {
         setState(() {
           _isGeneratingCertificate = false;

@@ -194,7 +194,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'KKM: $kkm%',
+                      'KKM: $kkm',
                       style: AppTextStyles.caption.copyWith(color: Colors.white),
                     ),
                   ],

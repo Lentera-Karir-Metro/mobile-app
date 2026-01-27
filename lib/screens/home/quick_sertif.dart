@@ -27,67 +27,75 @@ class _QuickSertifScreenState extends State<QuickSertifScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            
-            // Header with Back Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 31),
-              child: Row(
-                children: [
-                  CustomBackButton(
-                    onPressed: () => context.go('/home'),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '',
-                    style: AppTextStyles.heading3.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 16),
+              
+              // Header with Back Button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 31),
+                child: Row(
+                  children: [
+                    CustomBackButton(
+                      onPressed: () => context.go('/home'),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Text(
+                      '',
+                      style: AppTextStyles.heading3.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Description Text
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 31),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Sertifikat Saya',
-                    style: AppTextStyles.heading3.copyWith(
-                      color: AppColors.primaryPurple,
-                      fontWeight: FontWeight.w700,
+              
+              const SizedBox(height: 24),
+              
+              // Description Text
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 31),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sertifikat Saya',
+                      style: AppTextStyles.heading3.copyWith(
+                        color: AppColors.primaryPurple,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Sertifikat yang kamu dapatkan setelah menyelesaikan kelas',
-                    style: AppTextStyles.body1.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w400,
+                    const SizedBox(height: 8),
+                    Text(
+                      'Sertifikat yang kamu dapatkan setelah menyelesaikan kelas',
+                      style: AppTextStyles.body1.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w400,
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Content Section
-            Expanded(
-              child: _buildContentSection(),
-            ),
-          ],
+              
+              const SizedBox(height: 24),
+              
+              // Content Section
+              Expanded(
+                child: _buildContentSection(),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -220,14 +228,17 @@ class _QuickSertifScreenState extends State<QuickSertifScreen> {
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Title
+                    // Title - responsive, maksimal 2 baris dengan ellipsis
                     Text(
                       certificate.courseName,
                       style: AppTextStyles.body1.copyWith(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.w600,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                     
                     const SizedBox(height: 8),

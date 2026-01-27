@@ -20,6 +20,12 @@ class CatalogRepositoryImpl implements CatalogRepository {
 
   CatalogRepositoryImpl(this._catalogService);
 
+  /// Helper to check if response indicates server error
+  bool _isServerError(Map<String, dynamic> response) {
+    final statusCode = response['statusCode'];
+    return statusCode != null && (statusCode >= 500 || statusCode == 502);
+  }
+
   @override
   Future<List<CourseModel>> getCourses({
     int? page,
@@ -34,6 +40,12 @@ class CatalogRepositoryImpl implements CatalogRepository {
         category: category,
         level: level,
       );
+      
+      // Check for server error (502, 500, etc)
+      if (_isServerError(response)) {
+        throw Exception('Server error: ${response['statusCode']}');
+      }
+      
       if (response['success'] == true && response['data'] != null) {
         // Backend returns { success: true, data: { data: [...], pagination: {...} } }
         final responseData = response['data'];
@@ -49,7 +61,8 @@ class CatalogRepositoryImpl implements CatalogRepository {
         return data.map((e) => CourseModel.fromJson(e as Map<String, dynamic>)).toList();
       }
     } catch (e) {
-      print('Error parsing courses: $e');
+      // Error logged - removed print for production
+      rethrow;
     }
     return [];
   }
@@ -65,9 +78,8 @@ class CatalogRepositoryImpl implements CatalogRepository {
       if (response['success'] == true && response['data'] != null) {
         return CourseModel.fromJson(response['data']);
       }
-    } catch (e, stackTrace) {
-      print('Error getting course detail: $e');
-      print('Stack trace: $stackTrace');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return null;
   }
@@ -92,7 +104,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
         return data.map((e) => LearningPathModel.fromJson(e as Map<String, dynamic>)).toList();
       }
     } catch (e) {
-      print('Error parsing learning paths: $e');
+      // Error logged - removed print for production
     }
     return [];
   }
@@ -112,7 +124,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
         return LearningPathModel.fromJson(response['data']);
       }
     } catch (e) {
-      print('Error getting learning path detail: $e');
+      // Error logged - removed print for production
     }
     return null;
   }
@@ -135,7 +147,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
         return data.map((e) => CategoryModel.fromJson(e as Map<String, dynamic>)).toList();
       }
     } catch (e) {
-      print('Error parsing categories: $e');
+      // Error logged - removed print for production
     }
     return [];
   }
@@ -158,7 +170,7 @@ class CatalogRepositoryImpl implements CatalogRepository {
         return data.map((e) => MentorModel.fromJson(e as Map<String, dynamic>)).toList();
       }
     } catch (e) {
-      print('Error parsing mentors: $e');
+      // Error logged - removed print for production
     }
     return [];
   }

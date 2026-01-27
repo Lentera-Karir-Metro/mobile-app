@@ -34,87 +34,95 @@ class ProgressCard extends StatelessWidget {
             width: 1,
           ),
         ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Thumbnail: 125x74px dengan radius 20px
-            AdaptiveImage(
-              imagePath: thumbnailPath,
-              fallbackAsset: FallbackAssets.sampleImage,
-              width: 125,
-              height: 74,
-              fit: BoxFit.cover,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            const SizedBox(width: 15),
-            
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Title
-                  Text(
-                    title,
-                    style: AppTextStyles.body1.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                      height: 1.3,
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Thumbnail: 125x74px dengan radius 20px
+              AdaptiveImage(
+                imagePath: thumbnailPath,
+                fallbackAsset: FallbackAssets.sampleImage,
+                width: 125,
+                height: 74,
+                fit: BoxFit.cover,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              const SizedBox(width: 15),
+              
+              // Content
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Title
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: AppTextStyles.body1.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  
-                  const SizedBox(height: 12),
-                  
-                  // Progress Bar Section
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Progress Bar
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: SizedBox(
-                          height: 8,
-                          child: LinearProgressIndicator(
-                            value: progressPercent / 100,
-                            backgroundColor: const Color(0xFFD1D9E8), // #D1D9E8 dari design
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              AppColors.primaryPurple, // #661FFF
+                    
+                    const SizedBox(height: 8),
+                    
+                    // Progress Bar Section
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Progress Bar
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: SizedBox(
+                            height: 8,
+                            child: LinearProgressIndicator(
+                              value: progressPercent / 100,
+                              backgroundColor: const Color(0xFFD1D9E8), // #D1D9E8 dari design
+                              valueColor: const AlwaysStoppedAnimation<Color>(
+                                AppColors.primaryPurple, // #661FFF
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      
-                      // Subtitle dan Percent
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            subtitle,
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textSecondary, // #747474
-                              fontSize: 12,
+                        const SizedBox(height: 6),
+                        
+                        // Subtitle dan Percent
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                subtitle,
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textSecondary, // #747474
+                                  fontSize: 12,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                          Text(
-                            '$progressPercent%',
-                            style: AppTextStyles.caption.copyWith(
-                              color: AppColors.primaryPurple, // #661FFF
-                              fontWeight: FontWeight.w600,
-                              fontSize: 12,
+                            Text(
+                              '$progressPercent%',
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.primaryPurple, // #661FFF
+                                fontWeight: FontWeight.w600,
+                                fontSize: 12,
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

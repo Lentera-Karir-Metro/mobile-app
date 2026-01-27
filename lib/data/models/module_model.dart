@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 class ModuleModel {
   final String id; // Changed to String - backend returns "MD-xxxxxx"
   final String courseId; // Changed to String - backend returns "CR-xxxxxx"
@@ -39,8 +37,6 @@ class ModuleModel {
     // Parse module_id as String (backend returns "MD-xxxxxx" format)
     final moduleId = (json['module_id'] ?? json['id'])?.toString() ?? '';
     final parsedCourseId = (json['course_id'] ?? json['courseId'])?.toString() ?? '';
-    
-    debugPrint('[ModuleModel] Parsing: module_id=${json['module_id']}, id=${json['id']}, parsed=$moduleId, title=${json['title']}');
     
     return ModuleModel(
       id: moduleId,

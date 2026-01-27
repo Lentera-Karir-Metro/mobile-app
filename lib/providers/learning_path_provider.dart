@@ -75,10 +75,8 @@ class LearningPathProvider extends ChangeNotifier {
           .getLearningPathContent(pathId);
       
       // If null, fallback to public catalog endpoint
-      if (_currentLearningPath == null) {
-        _currentLearningPath = await _learningPathRepository
+      _currentLearningPath ??= await _learningPathRepository
             .getLearningPathDetail(pathId);
-      }
       
       _status = LearningPathStatus.loaded;
     } catch (e) {

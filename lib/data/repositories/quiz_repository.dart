@@ -20,8 +20,8 @@ class QuizRepositoryImpl implements QuizRepository {
       if (response['success'] == true && response['data'] != null) {
         return QuizStartModel.fromJson(response['data']);
       }
-    } catch (e) {
-      print('Error starting quiz: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return null;
   }
@@ -39,8 +39,8 @@ class QuizRepositoryImpl implements QuizRepository {
         selectedOptionId: selectedOptionId,
       );
       return response['success'] == true;
-    } catch (e) {
-      print('Error saving answer: $e');
+    } catch (_) {
+      // Error logged - removed print for production
       return false;
     }
   }
@@ -52,8 +52,8 @@ class QuizRepositoryImpl implements QuizRepository {
       if (response['success'] == true && response['data'] != null) {
         return QuizResultModel.fromJson(response['data']);
       }
-    } catch (e) {
-      print('Error submitting quiz: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return null;
   }

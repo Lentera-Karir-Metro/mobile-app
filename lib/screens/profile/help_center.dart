@@ -28,7 +28,8 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
           'Kami menerima berbagai metode pembayaran termasuk transfer bank, e-wallet (GoPay, OVO, Dana), dan kartu kredit/debit. Semua transaksi dijamin aman.',
     },
     {
-      'question': 'Di mana saya bisa melihat sertifikat yang sudah saya dapatkan?',
+      'question':
+          'Di mana saya bisa melihat sertifikat yang sudah saya dapatkan?',
       'answer':
           'Sertifikat Anda dapat dilihat di menu Profile > Sertifikat Saya. Anda juga bisa mengunduh dan membagikannya langsung dari halaman tersebut.',
     },
@@ -56,34 +57,48 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Get screen height for responsive banner
+    final screenHeight = MediaQuery.of(context).size.height;
+    final topPadding = MediaQuery.of(context).padding.top;
+
+    // Responsive banner height: minimum 140, scales with screen
+    final bannerHeight = (screenHeight * 0.18).clamp(140.0, 180.0);
+
     return Scaffold(
       backgroundColor: AppColors.backgroundColor,
       body: Column(
         children: [
-          // Header Banner dengan gradient
+          // Responsive Header Banner dengan gradient
           HeaderBanner(
-            height: 170,
+            height: bannerHeight + topPadding,
             child: SafeArea(
+              bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Back button
-                    CustomBackButton(
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                    const SizedBox(height: 8),
-                    // Title
-                    Text(
-                      'Help Center untuk membantu\napapun tentang Lentera Karir',
-                      style: AppTextStyles.body1.copyWith(
-                        color: AppColors.textOnDark,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 20,
-                        height: 1.3,
-                      )
+                    // Back button with proper spacing
+                    CustomBackButton(onPressed: () => Navigator.pop(context)),
+                    const SizedBox(height: 12),
+                    // Title - responsive text size
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Help Center untuk membantu\napapun tentang Lentera Karir',
+                            style: AppTextStyles.body1.copyWith(
+                              color: AppColors.textOnDark,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 18,
+                              height: 1.3,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -100,9 +115,7 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                   // Search bar
                   Padding(
                     padding: const EdgeInsets.fromLTRB(31, 24, 31, 24),
-                    child: CustomSearchBar(
-                      hintText: 'Cari jenis masalahmu',
-                    ),
+                    child: CustomSearchBar(hintText: 'Cari jenis masalahmu'),
                   ),
 
                   // FAQ Section
@@ -130,8 +143,9 @@ class _HelpCenterScreenState extends State<HelpCenterScreen> {
                               isExpanded: expandedIndex == index,
                               onTap: () {
                                 setState(() {
-                                  expandedIndex =
-                                      expandedIndex == index ? null : index;
+                                  expandedIndex = expandedIndex == index
+                                      ? null
+                                      : index;
                                 });
                               },
                             ),

@@ -82,11 +82,11 @@ class QuizResultScreen extends StatelessWidget {
             ),
           ),
 
-          // Content - positioned below back button area
+          // Content - positioned below back button area with spacing
           Positioned(
             left: 20,
             right: 20,
-            top: 80, // Position right below back button
+            top: 90, // Position below back button with proper spacing
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,

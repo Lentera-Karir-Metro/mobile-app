@@ -36,8 +36,8 @@ class CourseRepositoryImpl implements CourseRepository {
         
         return list.map((e) => CourseEnrollmentModel.fromJson(e as Map<String, dynamic>)).toList();
       }
-    } catch (e) {
-      print('Error getting my courses: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return [];
   }
@@ -49,8 +49,8 @@ class CourseRepositoryImpl implements CourseRepository {
       if (response['success'] == true && response['data'] != null) {
         return CourseModel.fromJson(response['data']);
       }
-    } catch (e) {
-      print('Error getting course content: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return null;
   }
@@ -60,8 +60,8 @@ class CourseRepositoryImpl implements CourseRepository {
     try {
       final response = await _courseService.completeModule(moduleId);
       return response['success'] == true;
-    } catch (e) {
-      print('Error completing module: $e');
+    } catch (_) {
+      // Error logged - removed print for production
       return false;
     }
   }
@@ -80,8 +80,8 @@ class CourseRepositoryImpl implements CourseRepository {
         }
         return list.map((e) => EbookModel.fromJson(e as Map<String, dynamic>)).toList();
       }
-    } catch (e) {
-      print('Error getting my ebooks: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return [];
   }

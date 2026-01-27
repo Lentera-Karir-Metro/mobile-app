@@ -32,8 +32,8 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
         
         return data.map((e) => LearningPathModel.fromJson(e as Map<String, dynamic>)).toList();
       }
-    } catch (e) {
-      print('Error parsing learning paths: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return [];
   }
@@ -47,8 +47,8 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
         // ApiService wraps it as { success: true, data: <object> }
         return LearningPathModel.fromJson(response['data'] as Map<String, dynamic>);
       }
-    } catch (e) {
-      print('Error parsing learning path detail: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return null;
   }
@@ -61,8 +61,8 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
       if (response['success'] == true && response['data'] != null) {
         return LearningPathModel.fromJson(response['data'] as Map<String, dynamic>);
       }
-    } catch (e) {
-      print('Error parsing learning path content: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return null;
   }
@@ -86,8 +86,8 @@ class LearningPathRepositoryImpl implements LearningPathRepository {
         
         return data.map((e) => LearningPathEnrollmentModel.fromJson(e as Map<String, dynamic>)).toList();
       }
-    } catch (e) {
-      print('Error parsing my learning paths: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
     return [];
   }

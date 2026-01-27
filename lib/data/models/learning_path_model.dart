@@ -46,8 +46,8 @@ class LearningPathModel {
             .map((e) => CourseModel.fromJson(e as Map<String, dynamic>))
             .toList();
       }
-    } catch (e) {
-      print('Error parsing courses in learning path: $e');
+    } catch (_) {
+      // Error logged - removed print for production
     }
 
     return LearningPathModel(

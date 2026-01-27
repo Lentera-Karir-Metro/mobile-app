@@ -6,6 +6,7 @@ class AuthResponseModel {
   final String? accessToken;
   final String? refreshToken;
   final UserModel? user;
+  final bool isNetworkError;
 
   AuthResponseModel({
     required this.success,
@@ -13,6 +14,7 @@ class AuthResponseModel {
     this.accessToken,
     this.refreshToken,
     this.user,
+    this.isNetworkError = false,
   });
 
   factory AuthResponseModel.fromJson(Map<String, dynamic> json) {
@@ -27,11 +29,19 @@ class AuthResponseModel {
       accessToken: data['token'] ?? data['access_token'] ?? data['accessToken'],
       refreshToken: data['refreshToken'] ?? data['refresh_token'],
       user: data['user'] != null ? UserModel.fromJson(data['user']) : null,
+      isNetworkError: json['isNetworkError'] ?? false,
     );
   }
 
-  factory AuthResponseModel.error(String message) {
-    return AuthResponseModel(success: false, message: message);
+  factory AuthResponseModel.error(
+    String message, {
+    bool isNetworkError = false,
+  }) {
+    return AuthResponseModel(
+      success: false,
+      message: message,
+      isNetworkError: isNetworkError,
+    );
   }
 }
 
@@ -41,6 +51,7 @@ class RegisterResponseModel {
   final String? userId;
   final String? email;
   final String? username;
+  final bool isNetworkError;
 
   RegisterResponseModel({
     required this.success,
@@ -48,6 +59,7 @@ class RegisterResponseModel {
     this.userId,
     this.email,
     this.username,
+    this.isNetworkError = false,
   });
 
   factory RegisterResponseModel.fromJson(Map<String, dynamic> json) {
@@ -60,6 +72,7 @@ class RegisterResponseModel {
       userId: user?['id']?.toString(),
       email: user?['email'],
       username: user?['username'],
+      isNetworkError: json['isNetworkError'] ?? false,
     );
   }
 }
@@ -68,11 +81,13 @@ class VerifyEmailResponseModel {
   final bool success;
   final String? message;
   final String? email;
+  final bool isNetworkError;
 
   VerifyEmailResponseModel({
     required this.success,
     this.message,
     this.email,
+    this.isNetworkError = false,
   });
 
   factory VerifyEmailResponseModel.fromJson(Map<String, dynamic> json) {
@@ -80,6 +95,7 @@ class VerifyEmailResponseModel {
       success: json['success'] ?? (json['email'] != null),
       message: json['message'],
       email: json['email'],
+      isNetworkError: json['isNetworkError'] ?? false,
     );
   }
 }
@@ -87,13 +103,20 @@ class VerifyEmailResponseModel {
 class ForgotPasswordResponseModel {
   final bool success;
   final String? message;
+  final bool isNetworkError;
 
-  ForgotPasswordResponseModel({required this.success, this.message});
+  ForgotPasswordResponseModel({
+    required this.success,
+    this.message,
+    this.isNetworkError = false,
+  });
 
   factory ForgotPasswordResponseModel.fromJson(Map<String, dynamic> json) {
     return ForgotPasswordResponseModel(
-      success: json['success'] ?? true, // Backend always returns 200 for security
+      success:
+          json['success'] ?? true, // Backend always returns 200 for security
       message: json['message'],
+      isNetworkError: json['isNetworkError'] ?? false,
     );
   }
 }
@@ -101,16 +124,19 @@ class ForgotPasswordResponseModel {
 class CheckStatusResponseModel {
   final bool success;
   final String? status;
+  final bool isNetworkError;
 
   CheckStatusResponseModel({
     required this.success,
     this.status,
+    this.isNetworkError = false,
   });
 
   factory CheckStatusResponseModel.fromJson(Map<String, dynamic> json) {
     return CheckStatusResponseModel(
       success: json['success'] ?? false,
       status: json['data']?['status'],
+      isNetworkError: json['isNetworkError'] ?? false,
     );
   }
 }

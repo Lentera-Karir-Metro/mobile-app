@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lentera_karir/styles/styles.dart';
 import 'package:lentera_karir/widgets/universal/adaptive_image.dart';
+import 'package:lentera_karir/utils/responsive_utils.dart';
 
 /// Card untuk menampilkan course dengan thumbnail, title, harga, diskon, dan mentor
 class CourseCard extends StatelessWidget {
@@ -27,12 +28,20 @@ class CourseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool hasDiscount = originalPrice != null && originalPrice!.isNotEmpty && originalPrice != price;
-    
+    final bool hasDiscount =
+        originalPrice != null &&
+        originalPrice!.isNotEmpty &&
+        originalPrice != price;
+
+    // Responsive sizing
+    final cardWidth = ResponsiveUtils.getCourseCardWidth(context);
+    final thumbnailWidth = cardWidth - 20; // Account for card margin
+    final thumbnailHeight = thumbnailWidth * 0.5; // Keep aspect ratio
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 211,
+        width: cardWidth,
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -51,8 +60,8 @@ class CourseCard extends StatelessWidget {
             // Thumbnail dengan margin, tanpa gap ke content
             Container(
               margin: const EdgeInsets.fromLTRB(10, 10, 10, 0),
-              width: 191,
-              height: 95,
+              width: thumbnailWidth,
+              height: thumbnailHeight,
               decoration: BoxDecoration(
                 color: AppColors.textSecondary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
@@ -60,19 +69,20 @@ class CourseCard extends StatelessWidget {
               child: AdaptiveImage(
                 imagePath: thumbnailPath,
                 fallbackAsset: FallbackAssets.sampleImage,
-                width: 191,
-                height: 95,
+                width: thumbnailWidth,
+                height: thumbnailHeight,
                 fit: BoxFit.cover,
                 borderRadius: BorderRadius.circular(12),
               ),
             ),
-            
+
             // Content dengan padding horizontal 10px, vertical sesuai space
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
                     // Title - Always 2 lines with auto-scaling text
                     LayoutBuilder(
@@ -83,7 +93,7 @@ class CourseCard extends StatelessWidget {
                             style: AppTextStyles.body2.copyWith(
                               color: AppColors.textPrimary,
                               fontWeight: FontWeight.w500,
-                              height: 1.3,
+                              height: 1.2,
                             ),
                           ),
                           maxLines: 2,
@@ -92,104 +102,114 @@ class CourseCard extends StatelessWidget {
 
                         // Cek apakah text overflow
                         final isOverflowing = textPainter.didExceedMaxLines;
-                        
+
                         return Text(
                           title,
                           style: AppTextStyles.body2.copyWith(
                             color: AppColors.textPrimary,
                             fontWeight: FontWeight.w500,
-                            height: 1.3,
-                            fontSize: isOverflowing ? 12 : 14, // Kecilkan jika overflow
+                            height: 1.2,
+                            fontSize: isOverflowing
+                                ? 11
+                                : 13, // Kecilkan jika overflow
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         );
                       },
                     ),
-                    
-                    const SizedBox(height: 4),
-                    
-                    // Mentor info
-                    if (mentorName != null && mentorName!.isNotEmpty)
-                      Row(
-                        children: [
-                          if (mentorPhoto != null && mentorPhoto!.isNotEmpty)
-                            Container(
-                              width: 16,
-                              height: 16,
-                              margin: const EdgeInsets.only(right: 4),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: AdaptiveImage(
-                                  imagePath: mentorPhoto,
-                                  fallbackAsset: FallbackAssets.sampleImage,
-                                  width: 16,
-                                  height: 16,
-                                  fit: BoxFit.cover,
+
+                    const SizedBox(height: 6),
+
+                    // Bottom section: Mentor + Price grouped together
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Mentor info
+                        if (mentorName != null && mentorName!.isNotEmpty)
+                          Row(
+                            children: [
+                              if (mentorPhoto != null &&
+                                  mentorPhoto!.isNotEmpty)
+                                Container(
+                                  width: 14,
+                                  height: 14,
+                                  margin: const EdgeInsets.only(right: 4),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(7),
+                                    child: AdaptiveImage(
+                                      imagePath: mentorPhoto,
+                                      fallbackAsset: FallbackAssets.sampleImage,
+                                      width: 14,
+                                      height: 14,
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                ),
+                              Expanded(
+                                child: Text(
+                                  mentorName!,
+                                  style: AppTextStyles.body3.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 10,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ),
-                          Expanded(
-                            child: Text(
-                              mentorName!,
+                            ],
+                          ),
+
+                        const SizedBox(height: 2),
+
+                        // Show course count if available, otherwise show price
+                        if (courseCount != null && courseCount! > 0) ...[
+                          // Course count for learning paths
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.play_circle_outline,
+                                size: 14,
+                                color: AppColors.primaryPurple,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '$courseCount Kursus',
+                                style: AppTextStyles.body2.copyWith(
+                                  color: AppColors.primaryPurple,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ] else if (price != null && price!.isNotEmpty) ...[
+                          // Price section with discount
+                          if (hasDiscount) ...[
+                            // Original price with strikethrough
+                            Text(
+                              originalPrice!,
                               style: AppTextStyles.body3.copyWith(
                                 color: AppColors.textSecondary,
-                                fontSize: 10,
+                                fontSize: 9,
+                                decoration: TextDecoration.lineThrough,
+                                decorationColor: AppColors.textSecondary,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
-                      ),
-                    
-                    const Spacer(),
-                    
-                    // Show course count if available, otherwise show price
-                    if (courseCount != null && courseCount! > 0) ...[
-                      // Course count for learning paths
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.play_circle_outline,
-                            size: 14,
-                            color: AppColors.primaryPurple,
-                          ),
-                          const SizedBox(width: 4),
+                          ],
+                          // Final price (purple, bold)
                           Text(
-                            '$courseCount Kursus',
+                            price!,
                             style: AppTextStyles.body2.copyWith(
                               color: AppColors.primaryPurple,
                               fontWeight: FontWeight.w700,
-                              fontSize: 12,
+                              fontSize: 11,
                             ),
                           ),
                         ],
-                      ),
-                    ] else if (price != null && price!.isNotEmpty) ...[
-                      // Price section with discount
-                      if (hasDiscount) ...[
-                        // Original price with strikethrough
-                        Text(
-                          originalPrice!,
-                          style: AppTextStyles.body3.copyWith(
-                            color: AppColors.textSecondary,
-                            fontSize: 10,
-                            decoration: TextDecoration.lineThrough,
-                            decorationColor: AppColors.textSecondary,
-                          ),
-                        ),
                       ],
-                      // Final price (purple, bold)
-                      Text(
-                        price!,
-                        style: AppTextStyles.body2.copyWith(
-                          color: AppColors.primaryPurple,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                    ),
                   ],
                 ),
               ),

@@ -63,6 +63,75 @@ class CourseModel {
   
   // Get quiz modules only
   List<ModuleModel> get quizModules => modules.where((m) => m.type == 'quiz').toList();
+  
+  /// Get modules with corrected lock status based on completion order
+  /// First module is always unlocked, subsequent modules are unlocked if previous is completed
+  /// For videos: first video is always unlocked regardless of ebooks
+  /// For quiz: quiz is unlocked only after ALL videos are completed
+  List<ModuleModel> get modulesWithCorrectedLock {
+    if (modules.isEmpty) return [];
+    
+    // Sort by orderIndex to ensure correct sequence
+    final sortedModules = List<ModuleModel>.from(modules)
+      ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+    
+    // Check if ALL videos are completed for quiz unlock
+    final allVideosCompleted = sortedModules
+        .where((m) => m.type == 'video')
+        .every((m) => m.isCompleted);
+    
+    final result = <ModuleModel>[];
+    bool previousVideoCompleted = true; // First video is always unlocked
+    bool previousEbookCompleted = true; // First ebook is always unlocked  
+    bool isFirstVideo = true;
+    bool isFirstEbook = true;
+    
+    for (int i = 0; i < sortedModules.length; i++) {
+      final module = sortedModules[i];
+      
+      bool shouldBeLocked = false;
+      
+      if (module.type == 'video') {
+        // First video is always unlocked
+        shouldBeLocked = isFirstVideo ? false : !previousVideoCompleted;
+        isFirstVideo = false;
+        previousVideoCompleted = module.isCompleted;
+      } else if (module.type == 'ebook') {
+        // First ebook is always unlocked  
+        shouldBeLocked = isFirstEbook ? false : !previousEbookCompleted;
+        isFirstEbook = false;
+        previousEbookCompleted = module.isCompleted;
+      } else if (module.type == 'quiz') {
+        // Quiz is locked until ALL videos are completed
+        shouldBeLocked = !allVideosCompleted;
+      }
+      
+      // Create new module with corrected lock status if needed
+      if (module.isLocked != shouldBeLocked) {
+        result.add(ModuleModel(
+          id: module.id,
+          courseId: module.courseId,
+          title: module.title,
+          description: module.description,
+          content: module.content,
+          videoUrl: module.videoUrl,
+          ebookUrl: module.ebookUrl,
+          duration: module.duration,
+          orderIndex: module.orderIndex,
+          isLocked: shouldBeLocked, // Corrected lock status
+          isCompleted: module.isCompleted,
+          isPassed: module.isPassed,
+          hasQuiz: module.hasQuiz,
+          quizId: module.quizId,
+          type: module.type,
+        ));
+      } else {
+        result.add(module);
+      }
+    }
+    
+    return result;
+  }
 
   factory CourseModel.fromJson(Map<String, dynamic> json) {
     // Handle nested courses structure from getCourseContent API

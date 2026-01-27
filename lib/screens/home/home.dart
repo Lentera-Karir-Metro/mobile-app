@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:lentera_karir/styles/styles.dart';
@@ -8,6 +10,8 @@ import 'package:lentera_karir/widgets/home/progress_card.dart';
 import 'package:lentera_karir/widgets/home/course_card.dart';
 import 'package:lentera_karir/providers/auth_provider.dart';
 import 'package:lentera_karir/providers/dashboard_provider.dart';
+import 'package:lentera_karir/screens/error/error_screen.dart';
+import 'package:lentera_karir/utils/responsive_utils.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -25,6 +29,104 @@ class _HomeScreenState extends State<HomeScreen> {
       context.read<DashboardProvider>().loadDashboard();
     });
   }
+  
+  void _showExitConfirmationDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Icon
+                SvgPicture.asset(
+                  'assets/profile/popup_logout.svg',
+                  width: 80,
+                  height: 80,
+                ),
+                const SizedBox(height: 24),
+                // Title
+                Text(
+                  'Keluar Aplikasi?',
+                  style: AppTextStyles.heading3.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                // Message
+                Text(
+                  'Apa kamu yakin ingin keluar\ndari aplikasi ini?',
+                  style: AppTextStyles.body2.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
+                // Buttons
+                Row(
+                  children: [
+                    // Keluar button
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                          SystemNavigator.pop();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF3B30),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: Text(
+                          'Keluar',
+                          style: AppTextStyles.body1.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    // Batal button
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(dialogContext);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE0E0E0),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: Text(
+                          'Batal',
+                          style: AppTextStyles.body1.copyWith(
+                            color: AppColors.textPrimary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,19 +134,52 @@ class _HomeScreenState extends State<HomeScreen> {
     final dashboardProvider = context.watch<DashboardProvider>();
     final user = authProvider.user;
     final stats = dashboardProvider.stats;
+
+    // Show error screen when there's a network/server error
+    if (dashboardProvider.status == DashboardStatus.error) {
+      return ErrorScreen.server(
+        message: dashboardProvider.errorMessage ?? 'Server sedang mengalami gangguan',
+        onRetry: () {
+          dashboardProvider.loadDashboard();
+        },
+      );
+    }
+
+    // Show loading indicator when loading data
+    if (dashboardProvider.isLoading) {
+      return Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: AppColors.primaryPurple,
+          ),
+        ),
+        bottomNavigationBar: const NavBottom(currentIndex: 0),
+      );
+    }
     
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 16),
-              
-              // User Avatar Header
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          _showExitConfirmationDialog();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            child: Builder(
+              builder: (context) {
+                final hPadding = ResponsiveUtils.getHorizontalPadding(context);
+                return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                
+                // User Avatar Header
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 31),
+                padding: EdgeInsets.symmetric(horizontal: hPadding),
                 child: Row(
                   children: [
                     CircleAvatar(
@@ -86,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> {
               
               // Search Bar (as button)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 31),
+                padding: EdgeInsets.symmetric(horizontal: hPadding),
                 child: GestureDetector(
                   onTap: () => context.push('/home/search'),
                   child: Container(
@@ -124,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
               
               // Statistics Cards (Quick Buttons)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 31),
+                padding: EdgeInsets.symmetric(horizontal: hPadding),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -162,7 +297,7 @@ class _HomeScreenState extends State<HomeScreen> {
               
               // Lanjutkan Belajar Section
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 31),
+                padding: EdgeInsets.symmetric(horizontal: hPadding),
                 child: Text(
                   'Lanjutkan Belajar',
                   style: AppTextStyles.heading3.copyWith(
@@ -175,7 +310,7 @@ class _HomeScreenState extends State<HomeScreen> {
               
               // Continue learning dari API atau placeholder
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 31),
+                padding: EdgeInsets.symmetric(horizontal: hPadding),
                 child: dashboardProvider.continueLearning.isNotEmpty
                     ? ProgressCard(
                         thumbnailPath: dashboardProvider.continueLearning.first.thumbnail,
@@ -251,7 +386,7 @@ class _HomeScreenState extends State<HomeScreen> {
               
               // Rekomendasi Untukmu Section
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 31),
+                padding: EdgeInsets.symmetric(horizontal: hPadding),
                 child: Text(
                   'Rekomendasi Untukmu',
                   style: AppTextStyles.heading3.copyWith(
@@ -264,11 +399,11 @@ class _HomeScreenState extends State<HomeScreen> {
               
               // Horizontal scrollable course list dari API atau empty state
               SizedBox(
-                height: 185,
+                height: 170, // Reduced for smaller screens
                 child: dashboardProvider.recommendedCourses.isNotEmpty
                     ? ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 31),
+                        padding: EdgeInsets.symmetric(horizontal: hPadding),
                         itemCount: dashboardProvider.recommendedCourses.length,
                         separatorBuilder: (context, index) => const SizedBox(width: 16),
                         itemBuilder: (context, index) {
@@ -298,10 +433,13 @@ class _HomeScreenState extends State<HomeScreen> {
               
               const SizedBox(height: 24),
             ],
+              );
+            },
           ),
         ),
       ),
       bottomNavigationBar: const NavBottom(currentIndex: 0),
+      ),
     );
   }
 }

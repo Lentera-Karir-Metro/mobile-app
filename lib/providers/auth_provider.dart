@@ -4,7 +4,14 @@ import 'package:lentera_karir/data/models/user_model.dart';
 import 'package:lentera_karir/data/repositories/auth_repository.dart';
 import 'package:lentera_karir/utils/shared_prefs_utils.dart';
 
-enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
+enum AuthStatus {
+  initial,
+  loading,
+  authenticated,
+  unauthenticated,
+  error,
+  networkError,
+}
 
 class AuthProvider extends ChangeNotifier {
   final AuthRepository _authRepository;
@@ -14,12 +21,14 @@ class AuthProvider extends ChangeNotifier {
   AuthStatus _status = AuthStatus.initial;
   UserModel? _user;
   String? _errorMessage;
+  bool _isNetworkError = false;
 
   AuthStatus get status => _status;
   UserModel? get user => _user;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
   bool get isLoading => _status == AuthStatus.loading;
+  bool get isNetworkError => _isNetworkError;
 
   // Initialize - check if user is logged in
   Future<void> initialize() async {
@@ -47,6 +56,7 @@ class AuthProvider extends ChangeNotifier {
   Future<bool> login(String email, String password) async {
     _status = AuthStatus.loading;
     _errorMessage = null;
+    _isNetworkError = false;
     notifyListeners();
 
     final response = await _authRepository.login(email, password);
@@ -58,8 +68,10 @@ class AuthProvider extends ChangeNotifier {
       return true;
     }
 
+    // Check if it's a network error
+    _isNetworkError = response.isNetworkError;
     _errorMessage = response.message ?? 'Login gagal';
-    _status = AuthStatus.error;
+    _status = _isNetworkError ? AuthStatus.networkError : AuthStatus.error;
     notifyListeners();
     return false;
   }
@@ -73,6 +85,7 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _status = AuthStatus.loading;
     _errorMessage = null;
+    _isNetworkError = false;
     notifyListeners();
 
     final response = await _authRepository.register(
@@ -83,8 +96,9 @@ class AuthProvider extends ChangeNotifier {
     );
 
     if (!response.success) {
+      _isNetworkError = response.isNetworkError;
       _errorMessage = response.message;
-      _status = AuthStatus.error;
+      _status = _isNetworkError ? AuthStatus.networkError : AuthStatus.error;
     } else {
       _status = AuthStatus.unauthenticated;
     }
@@ -101,11 +115,15 @@ class AuthProvider extends ChangeNotifier {
   // Forgot Password
   Future<ForgotPasswordResponseModel> forgotPassword(String email) async {
     _status = AuthStatus.loading;
+    _isNetworkError = false;
     notifyListeners();
 
     final response = await _authRepository.forgotPassword(email);
 
-    _status = AuthStatus.unauthenticated;
+    _isNetworkError = response.isNetworkError;
+    _status = _isNetworkError
+        ? AuthStatus.networkError
+        : AuthStatus.unauthenticated;
     notifyListeners();
 
     return response;
@@ -114,6 +132,7 @@ class AuthProvider extends ChangeNotifier {
   // Reset Password
   Future<bool> resetPassword(String token, String password) async {
     _status = AuthStatus.loading;
+    _isNetworkError = false;
     notifyListeners();
 
     final success = await _authRepository.resetPassword(token, password);
@@ -148,7 +167,8 @@ class AuthProvider extends ChangeNotifier {
   // Clear error
   void clearError() {
     _errorMessage = null;
-    if (_status == AuthStatus.error) {
+    _isNetworkError = false;
+    if (_status == AuthStatus.error || _status == AuthStatus.networkError) {
       _status = AuthStatus.unauthenticated;
     }
     notifyListeners();

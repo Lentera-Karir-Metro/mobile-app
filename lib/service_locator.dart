@@ -12,6 +12,7 @@ import 'package:lentera_karir/data/services/quiz_service.dart';
 import 'package:lentera_karir/data/services/payment_service.dart';
 import 'package:lentera_karir/data/services/certificate_service.dart';
 import 'package:lentera_karir/data/services/ebook_service.dart';
+import 'package:lentera_karir/data/services/assistant_service.dart';
 // Repositories
 import 'package:lentera_karir/data/repositories/auth_repository.dart';
 import 'package:lentera_karir/data/repositories/dashboard_repository.dart';
@@ -32,6 +33,7 @@ import 'package:lentera_karir/providers/quiz_provider.dart';
 import 'package:lentera_karir/providers/payment_provider.dart';
 import 'package:lentera_karir/providers/certificate_provider.dart';
 import 'package:lentera_karir/providers/ebook_provider.dart';
+import 'package:lentera_karir/providers/assistant_provider.dart';
 
 final GetIt getIt = GetIt.instance;
 
@@ -60,6 +62,7 @@ Future<void> setupServiceLocator() async {
     CertificateService(getIt<ApiService>()),
   );
   getIt.registerSingleton<EbookService>(EbookService(getIt<ApiService>()));
+  getIt.registerSingleton<AssistantService>(AssistantService());
 
   // Repositories
   getIt.registerSingleton<AuthRepository>(
@@ -118,6 +121,9 @@ Future<void> setupServiceLocator() async {
   );
   getIt.registerFactory<EbookProvider>(
     () => EbookProvider(getIt<EbookRepository>()),
+  );
+  getIt.registerLazySingleton<AssistantProvider>(
+    () => AssistantProvider(getIt<AssistantService>()),
   );
 
   getIt<Logger>().i('Service Locator setup complete');

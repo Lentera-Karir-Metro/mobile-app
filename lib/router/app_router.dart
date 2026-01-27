@@ -29,6 +29,7 @@ import 'package:lentera_karir/screens/kelas/sudah_beli/mulai_kelas.dart';
 import 'package:lentera_karir/screens/quiz/quiz.dart';
 import 'package:lentera_karir/screens/quiz/quiz_result.dart';
 import 'package:lentera_karir/screens/ebook/ebook_viewer.dart';
+import 'package:lentera_karir/screens/asisten/asisten_screen.dart';
 
 // Providers
 import 'package:lentera_karir/providers/catalog_provider.dart';
@@ -38,6 +39,7 @@ import 'package:lentera_karir/providers/quiz_provider.dart';
 import 'package:lentera_karir/providers/payment_provider.dart';
 import 'package:lentera_karir/providers/certificate_provider.dart';
 import 'package:lentera_karir/providers/ebook_provider.dart';
+import 'package:lentera_karir/providers/assistant_provider.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -118,6 +120,18 @@ class AppRouter {
           child: ChangeNotifierProvider<CatalogProvider>.value(
             value: getIt<CatalogProvider>(),
             child: const ExploreScreen(),
+          ),
+        ),
+      ),
+
+      // Asisten AI route with AssistantProvider (singleton)
+      GoRoute(
+        path: '/asisten',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: ChangeNotifierProvider<AssistantProvider>.value(
+            value: getIt<AssistantProvider>(),
+            child: const AsistenScreen(),
           ),
         ),
       ),

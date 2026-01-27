@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lentera_karir/styles/styles.dart';
+import 'package:lentera_karir/utils/responsive_utils.dart';
 
 /// Widget Quick Button untuk menampilkan statistik user (Ebook, Kelas, Sertifikat)
 /// dengan gradient purple background dan icon SVG
@@ -28,13 +29,18 @@ class QuickButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Ukuran icon konsisten untuk semua
-    const double iconSize = 24.0;
+    // Responsive sizing
+    final buttonHeight = ResponsiveUtils.getQuickButtonHeight(context);
+    final isSmall = ResponsiveUtils.isSmallScreen(context);
+    final double iconSize = isSmall ? 20.0 : 24.0;
+    final double numFontSize = isSmall ? 20.0 : 24.0;
+    final double labelFontSize = isSmall ? 10.0 : 12.0;
+    final double padding = isSmall ? 8.0 : 12.0;
     
     return GestureDetector(
       onTap: () => context.go(route),
       child: Container(
-        height: 74,
+        height: buttonHeight,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           boxShadow: [
@@ -62,7 +68,7 @@ class QuickButton extends StatelessWidget {
               
               // Number dan Label di kiri bawah
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: EdgeInsets.all(padding),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
@@ -70,9 +76,9 @@ class QuickButton extends StatelessWidget {
                     // Number
                     Text(
                       count,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textOnDark,
-                        fontSize: 24,
+                        fontSize: numFontSize,
                         fontWeight: FontWeight.bold,
                         height: 1.0,
                       ),
@@ -81,12 +87,13 @@ class QuickButton extends StatelessWidget {
                     // Label
                     Text(
                       label,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textOnDark,
-                        fontSize: 12,
+                        fontSize: labelFontSize,
                         fontWeight: FontWeight.w400,
                         height: 1.2,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
@@ -94,8 +101,8 @@ class QuickButton extends StatelessWidget {
               
               // Icon di pojok kanan atas (absolute position)
               Positioned(
-                top: 12,
-                right: 12,
+                top: padding,
+                right: padding,
                 child: SizedBox(
                   width: iconSize,
                   height: iconSize,

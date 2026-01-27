@@ -24,7 +24,7 @@ class MateriMulaiItem {
     this.ebookUrl,
     this.quizId,
   });
-  
+
   /// Factory to create from ModuleModel
   factory MateriMulaiItem.fromModule(ModuleModel module) {
     return MateriMulaiItem(
@@ -74,7 +74,8 @@ class PreviewMulaiKelasWidget extends StatefulWidget {
   });
 
   @override
-  State<PreviewMulaiKelasWidget> createState() => _PreviewMulaiKelasWidgetState();
+  State<PreviewMulaiKelasWidget> createState() =>
+      _PreviewMulaiKelasWidgetState();
 }
 
 class _PreviewMulaiKelasWidgetState extends State<PreviewMulaiKelasWidget>
@@ -93,27 +94,56 @@ class _PreviewMulaiKelasWidgetState extends State<PreviewMulaiKelasWidget>
       vsync: this,
     );
 
-    // Animation dari 0.15 (collapsed) ke 0.55 (expanded)
+    // Animation dari 0.18 (collapsed) ke 0.55 (expanded)
     _sizeAnimation = Tween<double>(
-      begin: 0.15,
+      begin: 0.18,
       end: 0.55,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     _buildMateriSections();
   }
-  
+
   @override
   void didUpdateWidget(PreviewMulaiKelasWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Rebuild sections when modules change
-    if (widget.modules != oldWidget.modules) {
-      _buildMateriSections();
+    // Rebuild sections when modules change (check length and completion status)
+    final oldModules = oldWidget.modules;
+    final newModules = widget.modules;
+
+    bool shouldRebuild = false;
+
+    // Check if modules list changed
+    if (oldModules == null && newModules != null) {
+      shouldRebuild = true;
+    } else if (oldModules != null && newModules == null) {
+      shouldRebuild = true;
+    } else if (oldModules != null && newModules != null) {
+      if (oldModules.length != newModules.length) {
+        shouldRebuild = true;
+      } else {
+        // Check if any module's completion or lock status changed
+        for (int i = 0; i < newModules.length; i++) {
+          if (oldModules[i].isCompleted != newModules[i].isCompleted ||
+              oldModules[i].isLocked != newModules[i].isLocked) {
+            shouldRebuild = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // Also check if completed videos count changed
+    if (oldWidget.completedVideos != widget.completedVideos) {
+      shouldRebuild = true;
+    }
+
+    if (shouldRebuild) {
+      setState(() {
+        _buildMateriSections();
+      });
     }
   }
-  
+
   void _buildMateriSections() {
     // Build from dynamic modules if available
     if (widget.modules != null && widget.modules!.isNotEmpty) {
@@ -122,30 +152,29 @@ class _PreviewMulaiKelasWidgetState extends State<PreviewMulaiKelasWidget>
           .where((m) => m.type == 'video')
           .map((m) => MateriMulaiItem.fromModule(m))
           .toList();
-      
+
       final quizItems = widget.modules!
           .where((m) => m.type == 'quiz')
           .map((m) => MateriMulaiItem.fromModule(m))
           .toList();
-      
+
       // Note: E-Book section is removed from preview as per request
       // Ebooks are accessible via filter tabs in mulai_kelas.dart
-      
+
       materiSections = [];
-      
+
       if (videoItems.isNotEmpty) {
-        materiSections.add(MateriMulaiSection(
-          title: 'Video Pembelajaran',
-          isExpanded: true,
-          items: videoItems,
-        ));
+        materiSections.add(
+          MateriMulaiSection(
+            title: 'Video Pembelajaran',
+            isExpanded: true,
+            items: videoItems,
+          ),
+        );
       }
-      
+
       if (quizItems.isNotEmpty) {
-        materiSections.add(MateriMulaiSection(
-          title: 'Quiz',
-          items: quizItems,
-        ));
+        materiSections.add(MateriMulaiSection(title: 'Quiz', items: quizItems));
       }
     } else {
       // Empty state - no modules
@@ -245,26 +274,15 @@ class _PreviewMulaiKelasWidgetState extends State<PreviewMulaiKelasWidget>
 
   Widget _buildCollapsedContent() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Video count di kiri
-          Text(
-            '${widget.totalVideos} Video',
-            style: AppTextStyles.heading4.copyWith(
-              color: AppColors.textPrimary,
-              fontWeight: FontWeight.bold,
-            ),
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Center(
+        child: Text(
+          'Detail Materi',
+          style: AppTextStyles.body1.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
           ),
-          // Progress di kanan
-          Text(
-            '${widget.completedVideos}/${widget.totalVideos} Selesai',
-            style: AppTextStyles.body1.copyWith(
-              color: AppColors.textSecondary,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -274,23 +292,14 @@ class _PreviewMulaiKelasWidgetState extends State<PreviewMulaiKelasWidget>
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${widget.totalVideos} Video',
-              style: AppTextStyles.subtitle1.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.bold,
-              ),
+        Center(
+          child: Text(
+            'Detail Materi',
+            style: AppTextStyles.subtitle1.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
             ),
-            Text(
-              '${widget.completedVideos}/${widget.totalVideos} Selesai',
-              style: AppTextStyles.body2.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
+          ),
         ),
         const SizedBox(height: 20),
         Text(
@@ -369,9 +378,9 @@ class _PreviewMulaiKelasWidgetState extends State<PreviewMulaiKelasWidget>
 
   Widget _buildMateriItem(MateriMulaiItem item) {
     final isLocked = item.isLocked;
-    
+
     return InkWell(
-      onTap: isLocked 
+      onTap: isLocked
           ? () {
               // Show locked message
               ScaffoldMessenger.of(context).showSnackBar(
@@ -401,24 +410,20 @@ class _PreviewMulaiKelasWidgetState extends State<PreviewMulaiKelasWidget>
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: isLocked 
+                  color: isLocked
                       ? Colors.grey.withAlpha(26)
                       : AppColors.primaryPurple.withAlpha(26),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 padding: const EdgeInsets.all(6),
                 child: isLocked
-                    ? Icon(
-                        Icons.lock,
-                        color: Colors.grey.shade500,
-                        size: 18,
-                      )
+                    ? Icon(Icons.lock, color: Colors.grey.shade500, size: 18)
                     : SvgPicture.asset(
-                        item.isQuiz 
-                            ? 'assets/preview/quiz.svg' 
-                            : item.isEbook 
-                                ? 'assets/preview/ebook.svg'
-                                : 'assets/preview/play.svg',
+                        item.isQuiz
+                            ? 'assets/preview/quiz.svg'
+                            : item.isEbook
+                            ? 'assets/preview/ebook.svg'
+                            : 'assets/preview/play.svg',
                         colorFilter: const ColorFilter.mode(
                           AppColors.primaryPurple,
                           BlendMode.srcIn,
@@ -426,7 +431,7 @@ class _PreviewMulaiKelasWidgetState extends State<PreviewMulaiKelasWidget>
                       ),
               ),
               const SizedBox(width: 12),
-              
+
               // Title
               Expanded(
                 child: Text(
@@ -437,16 +442,12 @@ class _PreviewMulaiKelasWidgetState extends State<PreviewMulaiKelasWidget>
                   ),
                 ),
               ),
-              
+
               const SizedBox(width: 8),
-              
+
               // Checkmark for completed items or lock icon
               if (isLocked)
-                Icon(
-                  Icons.lock,
-                  color: Colors.grey.shade400,
-                  size: 20,
-                )
+                Icon(Icons.lock, color: Colors.grey.shade400, size: 20)
               else if (item.isCompleted)
                 const Icon(
                   Icons.check_circle,

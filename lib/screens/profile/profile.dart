@@ -15,9 +15,16 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: Consumer<AuthProvider>(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: Consumer<AuthProvider>(
         builder: (context, authProvider, child) {
           final user = authProvider.user;
           
@@ -123,7 +130,8 @@ class ProfileScreen extends StatelessWidget {
           );
         },
       ),
-      bottomNavigationBar: const NavBottom(currentIndex: 3),
+      bottomNavigationBar: const NavBottom(currentIndex: 4),
+      ),
     );
   }
 

@@ -2,7 +2,7 @@ class ApiEndpoints {
   // Base URL - ganti dengan localhost untuk development lokal
   // atau gunakan ngrok URL untuk testing dari device fisik
   static const String baseUrl =
-      "https://cheryll-unintelligent-fuzzily.ngrok-free.dev/api/v1";
+      "https://api-lentera-karir.respatibc.com/api/v1";
 
   // ============================================================
   // AUTH ENDPOINTS (mounted at /api/v1/auth)

@@ -30,30 +30,57 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await Future.wait([
+      // Load all data in parallel
+      final results = await Future.wait([
         _loadStats(),
         _loadContinueLearning(),
         _loadRecommended(),
       ]);
+      
+      // Check if all results are null (indicates network/server error)
+      final statsLoaded = results[0];
+      final continueLoaded = results[1];
+      final recommendedLoaded = results[2];
+      
+      // If none of the data loaded successfully, it's likely a network error
+      if (!statsLoaded && !continueLoaded && !recommendedLoaded) {
+        throw Exception('Server tidak dapat dihubungi');
+      }
+      
       _status = DashboardStatus.loaded;
     } catch (e) {
-      _errorMessage = 'Terjadi kesalahan: $e';
+      _errorMessage = 'Server tidak dapat dihubungi. Periksa koneksi internet Anda.';
       _status = DashboardStatus.error;
     }
 
     notifyListeners();
   }
 
-  Future<void> _loadStats() async {
-    _stats = await _dashboardRepository.getStats();
+  Future<bool> _loadStats() async {
+    try {
+      _stats = await _dashboardRepository.getStats();
+      return _stats != null;
+    } catch (e) {
+      return false;
+    }
   }
 
-  Future<void> _loadContinueLearning() async {
-    _continueLearning = await _dashboardRepository.getContinueLearning();
+  Future<bool> _loadContinueLearning() async {
+    try {
+      _continueLearning = await _dashboardRepository.getContinueLearning();
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
-  Future<void> _loadRecommended() async {
-    _recommended = await _dashboardRepository.getRecommended();
+  Future<bool> _loadRecommended() async {
+    try {
+      _recommended = await _dashboardRepository.getRecommended();
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<void> loadLearnDashboard() async {

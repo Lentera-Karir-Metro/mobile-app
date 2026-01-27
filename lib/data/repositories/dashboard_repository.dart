@@ -13,15 +13,28 @@ class DashboardRepositoryImpl implements DashboardRepository {
 
   DashboardRepositoryImpl(this._dashboardService);
 
+  /// Helper to check if response indicates server error
+  bool _isServerError(Map<String, dynamic> response) {
+    final statusCode = response['statusCode'];
+    return statusCode != null && (statusCode >= 500 || statusCode == 502);
+  }
+
   @override
   Future<DashboardStats?> getStats() async {
     try {
       final response = await _dashboardService.getStats();
+      
+      // Check for server error (502, 500, etc)
+      if (_isServerError(response)) {
+        throw Exception('Server error: ${response['statusCode']}');
+      }
+      
       if (response['success'] == true && response['data'] != null) {
         return DashboardStats.fromJson(response['data']);
       }
     } catch (e) {
-      print('Error getting dashboard stats: $e');
+      // debugPrint removed for production
+      rethrow; // Re-throw to let provider handle it
     }
     return null;
   }
@@ -30,6 +43,12 @@ class DashboardRepositoryImpl implements DashboardRepository {
   Future<List<ContinueLearningModel>> getContinueLearning() async {
     try {
       final response = await _dashboardService.getContinueLearning();
+      
+      // Check for server error
+      if (_isServerError(response)) {
+        throw Exception('Server error: ${response['statusCode']}');
+      }
+      
       if (response['success'] == true && response['data'] != null) {
         final data = response['data'];
         // Backend returns single object, not array
@@ -41,7 +60,8 @@ class DashboardRepositoryImpl implements DashboardRepository {
         }
       }
     } catch (e) {
-      print('Error getting continue learning: $e');
+      // debugPrint removed for production
+      rethrow;
     }
     return [];
   }
@@ -50,6 +70,12 @@ class DashboardRepositoryImpl implements DashboardRepository {
   Future<List<RecommendedCourseModel>> getRecommended() async {
     try {
       final response = await _dashboardService.getRecommended();
+      
+      // Check for server error
+      if (_isServerError(response)) {
+        throw Exception('Server error: ${response['statusCode']}');
+      }
+      
       if (response['success'] == true && response['data'] != null) {
         final data = response['data'];
         // Handle both direct list and nested object structure
@@ -62,7 +88,8 @@ class DashboardRepositoryImpl implements DashboardRepository {
         return list.map((e) => RecommendedCourseModel.fromJson(e as Map<String, dynamic>)).toList();
       }
     } catch (e) {
-      print('Error getting recommended courses: $e');
+      // debugPrint removed for production
+      rethrow;
     }
     return [];
   }
@@ -71,6 +98,12 @@ class DashboardRepositoryImpl implements DashboardRepository {
   Future<List<LearningPathProgressModel>> getLearnDashboard() async {
     try {
       final response = await _dashboardService.getLearnDashboard();
+      
+      // Check for server error
+      if (_isServerError(response)) {
+        throw Exception('Server error: ${response['statusCode']}');
+      }
+      
       if (response['success'] == true && response['data'] != null) {
         final data = response['data'];
         // Handle both direct list and nested object structure
@@ -83,7 +116,8 @@ class DashboardRepositoryImpl implements DashboardRepository {
         return list.map((e) => LearningPathProgressModel.fromJson(e as Map<String, dynamic>)).toList();
       }
     } catch (e) {
-      print('Error getting learn dashboard: $e');
+      // debugPrint removed for production
+      rethrow;
     }
     return [];
   }

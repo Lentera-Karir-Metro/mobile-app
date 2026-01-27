@@ -59,7 +59,14 @@ class _LearnPathListScreenState extends State<LearnPathListScreen> {
   Widget build(BuildContext context) {
     return Consumer<LearningPathProvider>(
       builder: (context, provider, child) {
-        return Scaffold(
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, result) {
+            if (!didPop) {
+              context.go('/home');
+            }
+          },
+          child: Scaffold(
           backgroundColor: AppColors.backgroundColor,
           body: SafeArea(
             child: Column(
@@ -111,7 +118,8 @@ class _LearnPathListScreenState extends State<LearnPathListScreen> {
               ],
             ),
           ),
-          bottomNavigationBar: const NavBottom(currentIndex: 2),
+          bottomNavigationBar: const NavBottom(currentIndex: 3),
+          ),
         );
       },
     );

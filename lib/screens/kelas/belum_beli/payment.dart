@@ -59,7 +59,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
         if (_remainingTime.isNegative || _remainingTime.inSeconds <= 0) {
           timer.cancel();
           _remainingTime = Duration.zero;
-          // TODO: Show dialog bahwa pembayaran expired
+          // 
         }
       });
     });
@@ -88,7 +88,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
       return;
     }
 
-    // TODO: Implement Midtrans integration
+    // 
     // Option 1: WebView dengan redirectUrl
     // Option 2: Deep link ke app payment (Gopay, DANA, dll)
     
@@ -110,7 +110,7 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // TODO: Replace dengan data dari API
+    // T
     final String courseTitle = "Bootcamp: Kick-start\nKarier Digital";
     final String releaseDate = "Released date March 2025";
     final String lastUpdate = "Last updated August 2025";

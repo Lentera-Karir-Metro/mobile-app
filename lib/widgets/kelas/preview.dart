@@ -75,14 +75,11 @@ class _PreviewWidgetState extends State<PreviewWidget>
       vsync: this,
     );
 
-    // Animation dari 0.15 (collapsed) ke 0.55 (expanded) - tidak menutupi banner
+    // Animation dari 0.22 (collapsed) ke 0.55 (expanded) - tidak menutupi banner
     _sizeAnimation = Tween<double>(
-      begin: 0.15,
+      begin: 0.22,
       end: 0.55,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOutCubic,
-    ));
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
 
     // Use backend modules if available, otherwise use placeholder
     if (widget.modules != null && widget.modules!.isNotEmpty) {
@@ -94,16 +91,16 @@ class _PreviewWidgetState extends State<PreviewWidget>
             final isQuiz = m.quizId != null || m.type == 'quiz';
             final hasVideo = m.videoUrl != null && m.videoUrl!.isNotEmpty;
             final hasEbook = m.ebookUrl != null && m.ebookUrl!.isNotEmpty;
-            
-            String duration = '${m.duration} min';
+
+            String duration = 'Video';
             if (hasVideo) {
-              duration = '${m.duration > 0 ? m.duration : 10} min';
+              duration = 'Video';
             } else if (hasEbook) {
               duration = 'PDF';
             } else if (isQuiz) {
               duration = 'Quiz';
             }
-            
+
             return MateriItem(
               title: m.title,
               duration: duration,
@@ -121,19 +118,45 @@ class _PreviewWidgetState extends State<PreviewWidget>
           isExpanded: true,
           items: [
             const MateriItem(title: 'Analisis Tren', duration: '09:20'),
-            const MateriItem(title: 'Pengembangan Digital Mindset', duration: '12:45'),
-            const MateriItem(title: 'Manajemen Media Sosial', duration: '15:30'),
-            const MateriItem(title: 'Quiz Sesi 1', duration: '18:00', isQuiz: true),
+            const MateriItem(
+              title: 'Pengembangan Digital Mindset',
+              duration: '12:45',
+            ),
+            const MateriItem(
+              title: 'Manajemen Media Sosial',
+              duration: '15:30',
+            ),
+            const MateriItem(
+              title: 'Quiz Sesi 1',
+              duration: '18:00',
+              isQuiz: true,
+            ),
           ],
         ),
         MateriSection(
           title: 'Kompetensi Teknis Dasar',
           items: [
-            const MateriItem(title: 'SEO & Content Marketing', duration: '14:20'),
-            const MateriItem(title: 'Copywriting untuk Digital', duration: '16:30'),
-            const MateriItem(title: 'Analisis Data Sederhana', duration: '18:45'),
-            const MateriItem(title: 'Tools Digital Marketing', duration: '12:15'),
-            const MateriItem(title: 'Quiz Sesi 2', duration: '20:00', isQuiz: true),
+            const MateriItem(
+              title: 'SEO & Content Marketing',
+              duration: '14:20',
+            ),
+            const MateriItem(
+              title: 'Copywriting untuk Digital',
+              duration: '16:30',
+            ),
+            const MateriItem(
+              title: 'Analisis Data Sederhana',
+              duration: '18:45',
+            ),
+            const MateriItem(
+              title: 'Tools Digital Marketing',
+              duration: '12:15',
+            ),
+            const MateriItem(
+              title: 'Quiz Sesi 2',
+              duration: '20:00',
+              isQuiz: true,
+            ),
           ],
         ),
         MateriSection(
@@ -143,7 +166,11 @@ class _PreviewWidgetState extends State<PreviewWidget>
             const MateriItem(title: 'Membangun Portofolio', duration: '17:20'),
             const MateriItem(title: 'Networking & LinkedIn', duration: '13:45'),
             const MateriItem(title: 'Career Planning', duration: '16:00'),
-            const MateriItem(title: 'Quiz Final', duration: '25:00', isQuiz: true),
+            const MateriItem(
+              title: 'Quiz Final',
+              duration: '25:00',
+              isQuiz: true,
+            ),
           ],
         ),
       ];
@@ -175,7 +202,7 @@ class _PreviewWidgetState extends State<PreviewWidget>
       animation: _sizeAnimation,
       builder: (context, child) {
         final currentHeight = screenHeight * _sizeAnimation.value;
-        
+
         return Positioned(
           left: 0,
           right: 0,
@@ -244,32 +271,16 @@ class _PreviewWidgetState extends State<PreviewWidget>
   }
 
   Widget _buildCollapsedContent() {
-    return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '${widget.totalVideos} Video',
-                style: AppTextStyles.subtitle1.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                '${widget.completedVideos}/${widget.totalVideos} Selesai',
-                style: AppTextStyles.body2.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Text(
+          'Detail Materi',
+          style: AppTextStyles.subtitle1.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
           ),
-        ],
+        ),
       ),
     );
   }
@@ -279,23 +290,14 @@ class _PreviewWidgetState extends State<PreviewWidget>
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${widget.totalVideos} Video',
-              style: AppTextStyles.subtitle1.copyWith(
-                color: AppColors.textPrimary,
-                fontWeight: FontWeight.bold,
-              ),
+        Center(
+          child: Text(
+            'Detail Materi',
+            style: AppTextStyles.subtitle1.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
             ),
-            Text(
-              '${widget.completedVideos}/${widget.totalVideos} Selesai',
-              style: AppTextStyles.body2.copyWith(
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
+          ),
         ),
         const SizedBox(height: 8),
         Row(
@@ -405,11 +407,11 @@ class _PreviewWidgetState extends State<PreviewWidget>
             ),
             padding: const EdgeInsets.all(6),
             child: SvgPicture.asset(
-              item.isQuiz 
-                  ? 'assets/preview/quiz.svg' 
-                  : item.isEbook 
-                      ? 'assets/preview/ebook.svg'
-                      : 'assets/preview/play.svg',
+              item.isQuiz
+                  ? 'assets/preview/quiz.svg'
+                  : item.isEbook
+                  ? 'assets/preview/ebook.svg'
+                  : 'assets/preview/play.svg',
               colorFilter: ColorFilter.mode(
                 AppColors.primaryPurple,
                 BlendMode.srcIn,
@@ -464,9 +466,9 @@ class _PreviewWidgetState extends State<PreviewWidget>
           width: double.infinity,
           child: PrimaryButton(
             text: widget.isEnrolled ? 'Mulai Belajar' : 'Beli Kelas',
-            onPressed: widget.isEnrolled 
-              ? (widget.onStartTap ?? widget.onBuyTap)
-              : widget.onBuyTap,
+            onPressed: widget.isEnrolled
+                ? (widget.onStartTap ?? widget.onBuyTap)
+                : widget.onBuyTap,
           ),
         ),
       ),

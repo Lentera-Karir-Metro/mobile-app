@@ -43,67 +43,75 @@ class _QuickKelasScreenState extends State<QuickKelasScreen> {
 /// - An Expanded widget with a _buildContentSection method as its child.
 /// *****  cccf473c-fd07-4b14-995a-04e37095463b  ******
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: SafeArea(
-        child: Column(
-          children: [
-            const SizedBox(height: 16),
-            
-            // Header with Back Button
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 31),
-              child: Row(
-                children: [
-                  CustomBackButton(
-                    onPressed: () => context.go('/home'),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '',
-                    style: AppTextStyles.heading3.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: SafeArea(
+          child: Column(
+            children: [
+              const SizedBox(height: 16),
+              
+              // Header with Back Button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 31),
+                child: Row(
+                  children: [
+                    CustomBackButton(
+                      onPressed: () => context.go('/home'),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Text(
+                      '',
+                      style: AppTextStyles.heading3.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ), 
+              
+              const SizedBox(height: 24),
+              
+              // Description Text
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 31),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Kelas Saya',
+                      style: AppTextStyles.heading3.copyWith(
+                        color: AppColors.primaryPurple,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Kumpulan kelas yang telah kamu ikuti dari Lentera Karir',
+                      style: AppTextStyles.body1.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ), 
-            
-            const SizedBox(height: 24),
-            
-            // Description Text
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 31),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Kelas Saya',
-                    style: AppTextStyles.heading3.copyWith(
-                      color: AppColors.primaryPurple,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Kumpulan kelas yang telah kamu ikuti dari Lentera Karir',
-                    style: AppTextStyles.body1.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
+              
+              const SizedBox(height: 24),
+              
+              // Content Section
+              Expanded(
+                child: _buildContentSection(),
               ),
-            ),
-            
-            const SizedBox(height: 24),
-            
-            // Content Section
-            Expanded(
-              child: _buildContentSection(),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

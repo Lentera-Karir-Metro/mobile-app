@@ -29,107 +29,115 @@ class _QuickEbookScreenState extends State<QuickEbookScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundColor,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(left: 31, right: 31, top: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header dengan back button
-              Row(
-                children: [
-                  CustomBackButton(
-                    onPressed: () {
-                      context.go('/home');
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          context.go('/home');
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.backgroundColor,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.only(left: 31, right: 31, top: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header dengan back button
+                Row(
+                  children: [
+                    CustomBackButton(
+                      onPressed: () {
+                        context.go('/home');
+                      },
+                    ),
+                  ],
+                ),
+                
+                const SizedBox(height: 16),
+                
+                // Title section
+                Text(
+                  'Ebook Saya',
+                  style: AppTextStyles.heading3.copyWith(
+                    color: AppColors.primaryPurple,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                
+                const SizedBox(height: 8),
+                
+                // Description
+                Text(
+                  'Daftar Ebook yang telah diunduh pada setiap kelas',
+                  style: AppTextStyles.body2.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Search bar
+                const CustomSearchBar(
+                  hintText: 'Cari ebook berdasarkan judul kursus',
+                ),
+                
+                const SizedBox(height: 24),
+                
+                // Ebook List
+                Expanded(
+                  child: Consumer<EbookProvider>(
+                    builder: (context, provider, child) {
+                      if (provider.isLoading) {
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+
+                      if (provider.errorMessage != null) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                provider.errorMessage!,
+                                style: AppTextStyles.body1.copyWith(color: Colors.red),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () => provider.loadMyEbooks(),
+                                child: const Text('Coba Lagi'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      if (provider.ebooks.isEmpty) {
+                        return Center(
+                          child: Text(
+                            'Belum ada ebook yang diunduh',
+                            style: AppTextStyles.body1.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.separated(
+                        itemCount: provider.ebooks.length,
+                        separatorBuilder: (context, index) => const SizedBox(height: 16),
+                        itemBuilder: (context, index) {
+                          return _buildEbookCard(provider.ebooks[index]);
+                        },
+                      );
                     },
                   ),
-                ],
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Title section
-              Text(
-                'Ebook Saya',
-                style: AppTextStyles.heading3.copyWith(
-                  color: AppColors.primaryPurple,
-                  fontWeight: FontWeight.bold,
                 ),
-              ),
-              
-              const SizedBox(height: 8),
-              
-              // Description
-              Text(
-                'Daftar Ebook yang telah diunduh pada setiap kelas',
-                style: AppTextStyles.body2.copyWith(
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Search bar
-              const CustomSearchBar(
-                hintText: 'Cari ebook berdasarkan judul kursus',
-              ),
-              
-              const SizedBox(height: 24),
-              
-              // Ebook List
-              Expanded(
-                child: Consumer<EbookProvider>(
-                  builder: (context, provider, child) {
-                    if (provider.isLoading) {
-                      return const Center(
-                        child: CircularProgressIndicator(),
-                      );
-                    }
-
-                    if (provider.errorMessage != null) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              provider.errorMessage!,
-                              style: AppTextStyles.body1.copyWith(color: Colors.red),
-                              textAlign: TextAlign.center,
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton(
-                              onPressed: () => provider.loadMyEbooks(),
-                              child: const Text('Coba Lagi'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    if (provider.ebooks.isEmpty) {
-                      return Center(
-                        child: Text(
-                          'Belum ada ebook yang diunduh',
-                          style: AppTextStyles.body1.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      );
-                    }
-
-                    return ListView.separated(
-                      itemCount: provider.ebooks.length,
-                      separatorBuilder: (context, index) => const SizedBox(height: 16),
-                      itemBuilder: (context, index) {
-                        return _buildEbookCard(provider.ebooks[index]);
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
